@@ -412,7 +412,7 @@ app.post('/api/gatepasses', async (req, res) => {
 
     // Insert gate pass
     const [result] = await pool.query(
-      `INSERT INTO gate_passes 
+      `INSERT INTO gatepasses
        (gate_pass_no, requisition_id, fiscal_year, document_type, issued_by, authorized_by, remarks, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
       [gatePassNo, requisitionId, fiscalYear, documentType, issuedBy, authorizedBy, remarks]

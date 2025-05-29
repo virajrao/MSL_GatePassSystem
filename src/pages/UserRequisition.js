@@ -1,30 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Paper, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  TextField, 
-  Button,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  IconButton,
-  Typography,
-  Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  RadioGroup,
-  Radio,
-  FormControlLabel,
-  InputAdornment
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import {
+  Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TextField, Button, MenuItem, Select, FormControl, InputLabel, IconButton,
+  Typography, Divider, Dialog, DialogTitle, DialogContent, DialogActions,
+  RadioGroup, Radio, FormControlLabel, InputAdornment
 } from '@mui/material';
 import { AddCircle, RemoveCircle, Search } from '@mui/icons-material';
 import axios from 'axios';
@@ -42,6 +23,17 @@ const sapColors = {
   }
 };
 
+const ROW_HEIGHT = 48;
+const DEBOUNCE_DELAY = 300;
+
+const debounce = (func, delay) => {
+  let timer;
+  return function(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => func.apply(this, args), delay);
+  };
+};
+
 const generateServiceIndentNo = () => {
   const date = new Date();
   const year = date.getFullYear().toString().slice(-2);
@@ -57,9 +49,28 @@ const validateDate = (dateString) => {
   const date = new Date(dateString);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
   return date >= today;
 };
+
+const MaterialRow = React.memo(({ data, index, style }) => {
+  const material = data[index];
+  return (
+    <TableRow style={style} component="div" sx={{ display: 'flex', width: '100%' }}>
+      <TableCell component="div" sx={{ flex: 1 }}>{material.code}</TableCell>
+      <TableCell component="div" sx={{ flex: 2 }}>{material.desc}</TableCell>
+      <TableCell component="div" sx={{ flex: 1 }}>{material.uom}</TableCell>
+      <TableCell component="div" sx={{ flex: 1 }}>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => data.onSelect(material)}
+        >
+          Select
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+});
 
 const UserRequisition = () => {
   const [formData, setFormData] = useState({
@@ -84,35 +95,44 @@ const UserRequisition = () => {
   const [loading, setLoading] = useState(false);
   const [showTypeDialog, setShowTypeDialog] = useState(true);
   const [requisitionType, setRequisitionType] = useState('withCode');
-  const [errors, setErrors] = useState({
-    approxdateofreturn: []
-  });
-
-  // Value help dialog states
+  const [errors, setErrors] = useState({ approxdateofreturn: [] });
   const [valueHelpOpen, setValueHelpOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
-  const [filteredMaterials, setFilteredMaterials] = useState([]);
+
+  const debouncedSetSearchTerm = useCallback(
+    debounce((term) => setDebouncedSearchTerm(term), DEBOUNCE_DELAY),
+    []
+  );
+
+  const filteredMaterials = useMemo(() => {
+    if (!debouncedSearchTerm) return materialCodes;
+    
+    const term = debouncedSearchTerm.toLowerCase();
+    return materialCodes.filter(material => 
+      material.code?.toLowerCase().includes(term) || 
+      material.desc?.toLowerCase().includes(term)
+    );
+  }, [materialCodes, debouncedSearchTerm]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // Fetch departments
-        const deptResponse = await axios.get('http://localhost:5000/api/departments');
-        setDepartments(deptResponse.data);
+        const [deptResponse, productsResponse] = await Promise.all([
+          axios.get('http://localhost:5000/api/departments'),
+          axios.get('http://localhost:5000/api/sap/products')
+        ]);
 
-        // Fetch products from SAP
-        const productsResponse = await axios.get('http://localhost:5000/api/sap/products');
+        setDepartments(deptResponse.data);
         
-        // Transform data to only use code and unit
         const materials = productsResponse.data.products.map(p => ({
           code: p.code || '',
-          desc: p.desc || 'EA',
+          desc: p.desc || '',
           uom: p.uom || 'EA',
         }));
         
         setMaterialCodes(materials);
-        setFilteredMaterials(materials);
       } catch (error) {
         console.error('Initialization error:', error);
         alert(`Failed to initialize: ${error.response?.data?.error || error.message}`);
@@ -121,19 +141,13 @@ const UserRequisition = () => {
     fetchInitialData();
   }, []);
 
-  // Filter materials based on search term (only searches code now)
-  useEffect(() => {
-    if (searchTerm === '') {
-      setFilteredMaterials(materialCodes);
-    } else {
-      const filtered = materialCodes.filter(material => 
-        material.code?.toLowerCase().includes(searchTerm.toLowerCase()) || false
-      );
-      setFilteredMaterials(filtered);
-    }
-  }, [searchTerm, materialCodes]);
+  const handleSearchChange = (e) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    debouncedSetSearchTerm(term);
+  };
 
-  const handleTypeSelection = () => {
+  const handleTypeSelection = useCallback(() => {
     const initialItem = requisitionType === 'withCode' 
       ? {
           itemCode: '',
@@ -153,35 +167,40 @@ const UserRequisition = () => {
           remarks: ''
         };
     
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       items: [initialItem]
-    });
+    }));
+    
     setShowTypeDialog(false);
     setErrors({ approxdateofreturn: [] });
-  };
+  }, [requisitionType]);
 
-  const handleChange = (e, index) => {
+  const handleChange = useCallback((e, index) => {
     const { name, value } = e.target;
     
     if (name.startsWith('items.approxdateofreturn')) {
-      const newErrors = [...errors.approxdateofreturn];
-      newErrors[index] = [];
-      setErrors({...errors, approxdateofreturn: newErrors});
+      setErrors(prev => ({
+        ...prev,
+        approxdateofreturn: prev.approxdateofreturn.map((err, i) => 
+          i === index ? [] : err
+        )
+      }));
     }
 
     if (name.startsWith('items')) {
-      const items = [...formData.items];
-      const fieldName = name.split('.')[1];
-      items[index][fieldName] = value;
-      
-      setFormData({...formData, items});
+      setFormData(prev => {
+        const items = [...prev.items];
+        const fieldName = name.split('.')[1];
+        items[index][fieldName] = value;
+        return { ...prev, items };
+      });
     } else {
-      setFormData({...formData, [name]: value});
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
-  };
+  }, []);
 
-  const addItemRow = () => {
+  const addItemRow = useCallback(() => {
     const newItem = requisitionType === 'withCode' 
       ? {
           itemCode: '',
@@ -201,29 +220,33 @@ const UserRequisition = () => {
           remarks: ''
         };
     
-    setFormData({
-      ...formData,
-      items: [...formData.items, newItem]
-    });
-    setErrors({
-      ...errors,
-      approxdateofreturn: [...errors.approxdateofreturn, []]
-    });
-  };
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+    setErrors(prev => ({
+      ...prev,
+      approxdateofreturn: [...prev.approxdateofreturn, []]
+    }));
+  }, [requisitionType]);
 
-  const removeItemRow = (index) => {
+  const removeItemRow = useCallback((index) => {
     if (formData.items.length > 1) {
-      const newItems = [...formData.items];
-      newItems.splice(index, 1);
-      setFormData({...formData, items: newItems});
+      setFormData(prev => {
+        const newItems = [...prev.items];
+        newItems.splice(index, 1);
+        return { ...prev, items: newItems };
+      });
       
-      const newErrors = [...errors.approxdateofreturn];
-      newErrors.splice(index, 1);
-      setErrors({...errors, approxdateofreturn: newErrors});
+      setErrors(prev => {
+        const newErrors = [...prev.approxdateofreturn];
+        newErrors.splice(index, 1);
+        return { ...prev, approxdateofreturn: newErrors };
+      });
     }
-  };
+  }, [formData.items.length]);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const dateErrors = [];
     let isValid = true;
 
@@ -239,11 +262,11 @@ const UserRequisition = () => {
       }
     });
 
-    setErrors({...errors, approxdateofreturn: dateErrors});
+    setErrors(prev => ({ ...prev, approxdateofreturn: dateErrors }));
     return isValid;
-  };
+  }, [formData.items]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     
     if (!formData.department) {
@@ -299,17 +322,20 @@ const UserRequisition = () => {
       }
     } catch (error) {
       console.error('Submission error:', error);
-      console.log(error);
       alert(error.response?.data?.message || 'Failed to submit requisition');
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, requisitionType, validateForm]);
 
-  const ValueHelpDialog = () => (
+  const ValueHelpDialog = useMemo(() => (
     <Dialog 
       open={valueHelpOpen} 
-      onClose={() => setValueHelpOpen(false)}
+      onClose={() => {
+        setValueHelpOpen(false);
+        setSearchTerm('');
+        setDebouncedSearchTerm('');
+      }}
       maxWidth="md"
       fullWidth
       PaperProps={{ sx: { height: '60vh' } }}
@@ -320,9 +346,9 @@ const UserRequisition = () => {
           <TextField
             variant="outlined"
             size="small"
-            placeholder="Search by code..."
+            placeholder="Search by code or description..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -334,35 +360,28 @@ const UserRequisition = () => {
           />
         </Box>
       </DialogTitle>
-      <DialogContent dividers>
-        <TableContainer sx={{ maxHeight: '100%' }}>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell>Material Code</TableCell>
-                <TableCell>Material Desc</TableCell>
-                <TableCell>Material_UOM</TableCell>
-                <TableCell>Select</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredMaterials.length > 0 ? (
-                filteredMaterials.map((material) => (
-                  <TableRow 
-                    key={material.code}
-                    hover
-                    sx={{ 
-                      cursor: 'pointer',
-                      '&:hover': { backgroundColor: sapColors.valueHelp.rowHover }
-                    }}
-                  >
-                    <TableCell>{material.code}</TableCell>
-                    <TableCell>{material.desc}</TableCell>
-                    <TableCell>{material.uom}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outlined"
-                        onClick={() => {
+      <DialogContent dividers sx={{ p: 0 }}>
+        <Box sx={{ height: '400px', width: '100%' }}>
+          <AutoSizer>
+            {({ height, width }) => (
+              <TableContainer component="div" style={{ height, width }}>
+                <Table stickyHeader component="div">
+                  <TableHead component="div">
+                    <TableRow component="div" sx={{ display: 'flex', width: '100%' }}>
+                      <TableCell component="div" sx={{ flex: 1, fontWeight: 'bold' }}>Material Code</TableCell>
+                      <TableCell component="div" sx={{ flex: 2, fontWeight: 'bold' }}>Material Description</TableCell>
+                      <TableCell component="div" sx={{ flex: 1, fontWeight: 'bold' }}>UOM</TableCell>
+                      <TableCell component="div" sx={{ flex: 1, fontWeight: 'bold' }}>Select</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody component="div" style={{ height: height - 48, width }}>
+                    <List
+                      height={height - 48}
+                      itemCount={filteredMaterials.length}
+                      itemSize={ROW_HEIGHT}
+                      itemData={{
+                        ...filteredMaterials,
+                        onSelect: (material) => {
                           const updatedItems = [...formData.items];
                           updatedItems[selectedItemIndex] = {
                             ...updatedItems[selectedItemIndex],
@@ -373,36 +392,36 @@ const UserRequisition = () => {
                           setFormData({...formData, items: updatedItems});
                           setValueHelpOpen(false);
                           setSearchTerm('');
-                        }}
-                      >
-                        Select
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} align="center">
-                    No materials found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                          setDebouncedSearchTerm('');
+                        }
+                      }}
+                      width={width}
+                    >
+                      {MaterialRow}
+                    </List>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </AutoSizer>
+        </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => {
-          setValueHelpOpen(false);
-          setSearchTerm('');
-        }}>
+        <Button 
+          onClick={() => {
+            setValueHelpOpen(false);
+            setSearchTerm('');
+            setDebouncedSearchTerm('');
+          }}
+          variant="outlined"
+        >
           Cancel
         </Button>
       </DialogActions>
     </Dialog>
-  );
+  ), [valueHelpOpen, searchTerm, filteredMaterials, formData.items, selectedItemIndex]);
 
-  const renderItemCodeCell = (item, index) => (
+  const renderItemCodeCell = useCallback((item, index) => (
     <TableCell>
       <TextField
         name={`items.itemCode`}
@@ -433,7 +452,7 @@ const UserRequisition = () => {
         size="small"
       />
     </TableCell>
-  );
+  ), []);
 
   return (
     <Box sx={{ p: 3, width: '100%', minHeight: '100vh', backgroundColor: '#fafafa' }}>
@@ -645,7 +664,6 @@ const UserRequisition = () => {
 
               <Divider sx={{ my: 3 }} />
 
-
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                 <Button variant="outlined" sx={{ color: sapColors.textDark, borderColor: sapColors.border }}>
                   Cancel
@@ -661,7 +679,7 @@ const UserRequisition = () => {
               </Box>
             </Box>
           </Paper>
-          <ValueHelpDialog />
+          {ValueHelpDialog}
         </>
       )}
     </Box>
