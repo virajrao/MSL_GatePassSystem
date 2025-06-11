@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import ReactToPrint from 'react-to-print';
+import { useRef } from 'react';
+import PrintableGatePass from './printablegatepass';
 import { 
   Box, 
   Grid, 
@@ -89,6 +92,8 @@ const StoreDashboard = () => {
     dateRange: 'all'
   });
 
+  const printRef = useRef();
+
   useEffect(() => {
     fetchRequisitions();
   }, [activeTab, filter]);
@@ -153,37 +158,45 @@ const StoreDashboard = () => {
   };
 
   const handleGeneratePass = async () => {
-    try {
-      // Update requisition status to "approved"
-      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, {
-        status: 'approved'
-      });
+  try {
+    // Update requisition status to "approved"
+    await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, {
+      status: 'approved'
+    });
 
-      // Create the gate pass
-      await axios.post('http://localhost:5000/api/gatepasses', {
-        ...passData,
-        requisitionId: selectedRequisition.id,
-        items: selectedRequisition.items
-      });
+    // Create the gate pass
+    await axios.post('http://localhost:5000/api/gatepasses', {
+      ...passData,
+      requisitionId: selectedRequisition.id,
+      items: selectedRequisition.items
+    });
 
-      setSnackbar({
-        open: true,
-        message: `Gate Pass ${passData.gatePassNo} generated successfully!`,
-        severity: 'success'
-      });
-      
-      // Refresh data
-      await fetchRequisitions();
-      handleClosePassDialog();
-    } catch (err) {
-      console.error('Error generating gate pass:', err);
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.error || 'Failed to generate gate pass',
-        severity: 'error'
-      });
-    }
-  };
+    setSnackbar({
+      open: true,
+      message: `Gate Pass ${passData.gatePassNo} generated successfully!`,
+      severity: 'success'
+    });
+    
+    // Refresh data
+    await fetchRequisitions();
+    
+    // Trigger print after a small delay to allow state updates
+    setTimeout(() => {
+      if (printRef.current) {
+        window.print();
+      }
+    }, 500);
+    
+    handleClosePassDialog();
+  } catch (err) {
+    console.error('Error generating gate pass:', err);
+    setSnackbar({
+      open: true,
+      message: err.response?.data?.error || 'Failed to generate gate pass',
+      severity: 'error'
+    });
+  }
+};
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -589,27 +602,37 @@ const StoreDashboard = () => {
 
         {/* Gate Pass Generation Dialog */}
         <Dialog 
-          open={openPassDialog} 
-          onClose={handleClosePassDialog}
-          maxWidth="md"
-          fullWidth
+            open={openPassDialog} 
+            onClose={handleClosePassDialog}
+            maxWidth="md"
+            fullWidth
         >
-          <DialogTitle sx={{ 
-            backgroundColor: sapColors.light,
-            borderBottom: `1px solid ${sapColors.secondary}`,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <span>Generate Gate Pass</span>
-            <Chip 
-              label={passData.documentType} 
-              color={passData.documentType === 'RGP' ? 'primary' : 'secondary'}
-              size="small"
-            />
-          </DialogTitle>
-          
+        <DialogTitle sx={{ 
+          backgroundColor: sapColors.light,
+          borderBottom: `1px solid ${sapColors.secondary}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <span>Generate Gate Pass</span>
+          <Chip 
+            label={passData.documentType} 
+            color={passData.documentType === 'RGP' ? 'primary' : 'secondary'}
+            size="small"
+          />
+        </DialogTitle>
+
+
+
           <DialogContent sx={{ pt: 3 }}>
+            {/* Hidden printable content */}
+              <Box sx={{ display: 'none' }}>
+                <PrintableGatePass
+                  ref={printRef} 
+                  passData={passData} 
+                  requisition={selectedRequisition} 
+                />
+              </Box>
             {selectedRequisition && (
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
@@ -752,31 +775,45 @@ const StoreDashboard = () => {
               </Grid>
             )}
           </DialogContent>
-          
-          <DialogActions sx={{ 
-            borderTop: `1px solid ${sapColors.light}`,
-            p: 2
-          }}>
-            <Button 
-              onClick={handleClosePassDialog}
-              variant="outlined"
-              sx={{ color: sapColors.dark }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleGeneratePass}
-              variant="contained"
-              sx={{ 
-                backgroundColor: sapColors.primary,
-                '&:hover': { backgroundColor: '#085c9e' }
-              }}
-              disabled={!passData.issuedBy || !passData.authorizedBy}
-            >
-              Generate Gate Pass
-            </Button>
-          </DialogActions>
-        </Dialog>
+           <DialogActions sx={{ 
+    borderTop: `1px solid ${sapColors.light}`,
+    p: 2
+  }}>
+    <Button 
+      onClick={handleClosePassDialog}
+      variant="outlined"
+      sx={{ color: sapColors.dark }}
+    >
+      Cancel
+    </Button>
+    <ReactToPrint
+      trigger={() => (
+        <Button 
+          variant="contained"
+          sx={{ 
+            backgroundColor: sapColors.warning,
+            '&:hover': { backgroundColor: '#d39e00' }
+          }}
+          disabled={!passData.issuedBy || !passData.authorizedBy}
+        >
+          Print Preview
+        </Button>
+      )}
+      content={() => printRef.current}
+    />
+    <Button 
+      onClick={handleGeneratePass}
+      variant="contained"
+      sx={{ 
+        backgroundColor: sapColors.primary,
+        '&:hover': { backgroundColor: '#085c9e' }
+      }}
+      disabled={!passData.issuedBy || !passData.authorizedBy}
+    >
+      Generate & Print
+    </Button>
+  </DialogActions>
+</Dialog>
 
         <Snackbar
           open={snackbar.open}
