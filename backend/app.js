@@ -71,10 +71,10 @@ app.post('/api/login', async (req, res) => {
 // ==================== REQUISITION ENDPOINTS ====================
 
 const SAP_CONFIG = {
-  // https://my419382-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_MATERIAL_RGP1_CDS/YY1_Material_RGP1?$format=json
+  // https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1?$format=json
 
-  BASE_URL: 'https://my419382-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_MATERIAL_RGP1_CDS/',
-  AUTH: `Basic ${Buffer.from('PY_API_USER:EcqzvojarSNwxRNeBBzVkNdEDCulEnhoGYmU+E8E').toString('base64')}`,
+  BASE_URL: 'https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/',
+  AUTH: `Basic ${Buffer.from('RGPUSER1:euVGzWuhGBMRl@FJgwDNfrPkHKxUFwiP8wjLqlHP').toString('base64')}`,
   BATCH_SIZE: 1000, // Records per request
   MAX_RETRIES: 3,
   RETRY_DELAY: 2000, // ms between retries
@@ -96,13 +96,38 @@ app.get('/api/departments', async (req, res) => {
   }
 });
 
+// GET /api/validate-requisition/:number
+app.get('/api/validate-requisition/:number', async (req, res) => {
+  try {
+    const { number } = req.params;
+    
+    // Query your database
+    const query = 'SELECT * FROM  purchasereqn_new WHERE pr_num = ?';
+    const [results] = await pool.query(query, [number]);
+    
+    if (results.length > 0) {
+      return res.json({
+        exists: true,
+        requisition: results[0]
+      });
+    } else {
+      return res.json({
+        exists: false
+      });
+    }
+  } catch (error) {
+    console.error('Validation error:', error);
+    res.status(500).json({ message: 'Error validating requisition' });
+  }
+});
+
 
 // Enhanced SAP Products Endpoint with Smart Pagination and DB Sync
-app.get('/api/sap/products', async (req, res) => {
-  console.log('Initiating SAP products fetch with smart pagination and DB sync...');
+app.get('/api/sap/purchreq', async (req, res) => {
+  console.log('Initiating SAP Service PR fetch with smart pagination and DB sync...');
   
   try {
-    let allProducts = [];
+    let allPr = [];
     let skip = 0;
     let hasMore = true;
     let retryCount = 0;
@@ -111,7 +136,7 @@ app.get('/api/sap/products', async (req, res) => {
     // PHASE 1: Fetch all products from SAP
     while (hasMore && retryCount < SAP_CONFIG.MAX_RETRIES) {
       try {
-        const url = `${SAP_CONFIG.BASE_URL}/YY1_Material_RGP1?$format=json&$top=${SAP_CONFIG.BATCH_SIZE}&$skip=${skip}`;
+        const url = `${SAP_CONFIG.BASE_URL}/YY1_pur_reqn1?$format=json&$top=${SAP_CONFIG.BATCH_SIZE}&$skip=${skip}`;
         
         console.log(`Fetching batch: skip=${skip}, top=${SAP_CONFIG.BATCH_SIZE}`);
         
@@ -124,7 +149,7 @@ app.get('/api/sap/products', async (req, res) => {
         });
 
         const batch = response.data.d?.results || response.data.value || [];
-        allProducts = [...allProducts, ...batch];
+        allPr = [...allPr, ...batch];
         totalFetched += batch.length;
         
         console.log(`Fetched ${batch.length} records (Total: ${totalFetched})`);
@@ -151,10 +176,22 @@ app.get('/api/sap/products', async (req, res) => {
     }
 
     // Transform data
-    const formattedProducts = allProducts.map(product => ({
-      code: product.Product,
-      desc: product.ProductName || 'No Description',
-      uom: product.BaseUnit || 'EA'
+    const formattedPr = allPr.map(Purchasereq=> ({
+        pr_num: Purchasereq.PurchaseRequisition,
+        pr_itm_num: Purchasereq.PurchaseRequisitionItem,
+        itm_code: Purchasereq.Material,
+        Requester: Purchasereq.RequisitionerName,
+        itm_qty: Purchasereq.RequestedQuantity,
+        ExpDateofreturn: Purchasereq.DeliveryDate,
+        PrType: Purchasereq.PurchaseRequisitionType,
+        Dept_Code:  Purchasereq.Code,
+        Dept_Code_txt: Purchasereq.Code_Text,
+        ItemnetAmt:Purchasereq.ItemNetAmount,
+        Currency: Purchasereq.PurReqnItemCurrency,
+        Status:  Purchasereq.PurReqnReleaseStatus,
+        UOM: Purchasereq.BaseUnit,
+        PrDate: Purchasereq.PurchaseReqnCreationDate,
+        Pr_itm_txt: Purchasereq.PurchaseRequisitionItemText
     }));
 
     // PHASE 2: Database Synchronization
@@ -163,28 +200,31 @@ app.get('/api/sap/products', async (req, res) => {
 
     try {
       // 1. Get current count from database
-      const [dbCountResult] = await pool.query('SELECT COUNT(*) as count FROM products_new');
+      const [dbCountResult] = await pool.query('SELECT COUNT(*) as count FROM purchasereqn_new');
       const currentDbCount = dbCountResult[0].count;
 
       // 2. Compare counts
-      if (formattedProducts.length > currentDbCount) {
-        console.log(`Updating database (SAP: ${formattedProducts.length} vs DB: ${currentDbCount})`);
+      if (formattedPr.length > currentDbCount) {
+        console.log(`Updating database (SAP: ${formattedPr.length} vs DB: ${currentDbCount})`);
         
         // 3. Truncate table for full refresh (or implement incremental update)
-        await pool.query('TRUNCATE TABLE products');
+        await pool.query('TRUNCATE TABLE purchasereqn_new');
         
         // 4. Insert all new records in batches
         const batchSize = 500; // Adjust based on your DB performance
-        for (let i = 0; i < formattedProducts.length; i += batchSize) {
-          const batch = formattedProducts.slice(i, i + batchSize);
-          const values = batch.map(p => [p.code, p.desc,p.uom]);
+        for (let i = 0; i < formattedPr.length; i += batchSize) {
+          const batch = formattedPr.slice(i, i + batchSize);
+          const values = batch.map(pr => [  pr.pr_num,pr.pr_itm_num,pr.itm_code,pr.Requester,pr.itm_qty
+                                            ,pr.ExpDateofreturn,pr.PrType,pr.Dept_Code,pr.Dept_Code_txt,
+                                            pr.ItemnetAmt,pr.Currency,pr.Status,pr.UOM,pr.PrDate,
+                                            pr.Pr_itm_txt  ]);
           
           await pool.query(
-            'INSERT INTO products_new (product_code,product_desc,product_uom) VALUES ?',
+            'INSERT INTO purchasereqn_new (pr_num,pr_itm_num,itm_code,Requester,itm_qty,ExpDateofreturn,PrType,Dept_Code,Dept_Code_txt,ItemnetAmt,Currency,Status,UOM,PrDate,Pr_itm_txt) VALUES ?',
             [values]
           );
           
-          console.log(`Inserted ${batch.length} records (Total: ${Math.min(i + batchSize, formattedProducts.length)})`);
+          console.log(`Inserted ${batch.length} records (Total: ${Math.min(i + batchSize, formattedPr.length)})`);
         }
         
         console.log('Database synchronization completed successfully');
@@ -196,10 +236,10 @@ app.get('/api/sap/products', async (req, res) => {
 
       res.json({
         success: true,
-        totalCount: formattedProducts.length,
+        totalCount: formattedPr.length,
         dbCountBefore: currentDbCount,
-        dbUpdated: formattedProducts.length > currentDbCount,
-        products: formattedProducts
+        dbUpdated: formattedPr.length > currentDbCount,
+        products: formattedPr
       });
 
     } catch (dbError) {
