@@ -5,18 +5,54 @@ const app = express();
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 
-
 // Middleware
 app.use(cors({
   origin: 'http://localhost:3000', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
+
+// ==================== UTILITY FUNCTIONS ====================
+
+function convertODataDateToOriginal(odataDateString) {
+    if (odataDateString == null) return null;
+    
+    // Convert to string if it isn't already
+    const dateString = String(odataDateString);
+    
+    // Handle both OData format and regular dates
+    if (dateString.startsWith('/Date(')) {
+        const timestampMatch = dateString.match(/\/Date\((-?\d+)\)\//);
+        if (!timestampMatch) return dateString; // Return as-is if format is invalid
+        
+        const timestamp = parseInt(timestampMatch[1], 10);
+        const date = new Date(timestamp);
+        
+        // Format as YYYY-MM-DD (ISO format)
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+    } else {
+        // Handle other date formats (like YYYYMMDD or YYYY-MM-DD)
+        return dateString; // Return as-is for now
+    }
+}
+
+const SAP_CONFIG = {
+  BASE_URL: 'https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/',
+  AUTH: `Basic ${Buffer.from('RGPUSER1:euVGzWuhGBMRl@FJgwDNfrPkHKxUFwiP8wjLqlHP').toString('base64')}`,
+  BATCH_SIZE: 1000,
+  MAX_RETRIES: 3,
+  RETRY_DELAY: 2000,
+  TIMEOUT: 30000
+};
 
 // ==================== AUTHENTICATION ENDPOINTS ====================
 
-// Registration Endpoint
 app.post('/api/register', async (req, res) => {
   const { username, password, role } = req.body;
 
@@ -41,7 +77,6 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Login Endpoint
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -67,23 +102,9 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-
 // ==================== REQUISITION ENDPOINTS ====================
 
-const SAP_CONFIG = {
-  // https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1?$format=json
-
-  BASE_URL: 'https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/',
-  AUTH: `Basic ${Buffer.from('RGPUSER1:euVGzWuhGBMRl@FJgwDNfrPkHKxUFwiP8wjLqlHP').toString('base64')}`,
-  BATCH_SIZE: 1000, // Records per request
-  MAX_RETRIES: 3,
-  RETRY_DELAY: 2000, // ms between retries
-  TIMEOUT: 30000 // ms
-};
-
-// Get all departments with full details
 app.get('/api/departments', async (req, res) => {
-  console.log('Attempting to fetch departments...');
   try {
     const [departments] = await pool.query('SELECT id, name, code FROM departments');
     res.json(departments);
@@ -96,25 +117,56 @@ app.get('/api/departments', async (req, res) => {
   }
 });
 
-// GET /api/validate-requisition/:number
+
+
 app.get('/api/validate-requisition/:number', async (req, res) => {
   try {
     const { number } = req.params;
     
-    // Query your database
-    const query = 'SELECT * FROM  purchasereqn_new WHERE pr_num = ?';
-    const [results] = await pool.query(query, [number]);
+    // Query for the requisition header
+    const [requisitionResults] = await pool.query(
+      'SELECT DISTINCT pr_num, Dept_Code, Dept_Code_txt, Requester, PrDate, PrType, Pr_itm_txt FROM purchasereqn_new WHERE pr_num = ? LIMIT 1',
+      [number]
+    );
     
-    if (results.length > 0) {
-      return res.json({
-        exists: true,
-        requisition: results[0]
-      });
-    } else {
-      return res.json({
-        exists: false
-      });
+    if (requisitionResults.length === 0) {
+      return res.json({ exists: false });
     }
+
+    // Query for all items for this PR
+    const [itemsResults] = await pool.query(
+      'SELECT * FROM purchasereqn_new WHERE pr_num = ?',
+      [number]
+    );
+
+    // Transform into the required format
+    const firstItem = requisitionResults[0];
+    const response = {
+      exists: true,
+      requisition: {
+        pr_num: firstItem.pr_num,
+        department_id: firstItem.Dept_Code,
+        department_code: firstItem.Dept_Code_txt,
+        requisitioned_by: firstItem.Requester,
+        requisition_date: firstItem.PrDate,
+        status: 'pending',
+        remarks: firstItem.Pr_itm_txt || '',
+        pr_type: firstItem.PrType || 'standard'
+      },
+      items: itemsResults.map(item => ({
+        pr_itm_num: item.pr_itm_num,
+        item_code: item.itm_code,
+        quantity_requested: item.itm_qty,
+        unit: item.UOM,
+        approx_cost: item.ItemnetAmt,
+        material_description: item.Pr_itm_txt,
+        approxdateofret: item.ExpDateofreturn,
+        currency: item.Currency,
+        status: 'pending'
+      }))
+    };
+
+    res.json(response);
   } catch (error) {
     console.error('Validation error:', error);
     res.status(500).json({ message: 'Error validating requisition' });
@@ -122,7 +174,115 @@ app.get('/api/validate-requisition/:number', async (req, res) => {
 });
 
 
-// Enhanced SAP Products Endpoint with Smart Pagination and DB Sync
+
+
+app.post('/api/submit-pr', async (req, res) => {
+  console.log('Submitting PR:', req.body.requisition?.pr_num);
+  console.log('Request items count:', req.body.items?.length);
+
+  try {
+    await pool.query('START TRANSACTION');
+
+    // Validate input
+    if (!req.body.requisition || !req.body.requisition.pr_num) {
+      await pool.query('ROLLBACK');
+      return res.status(400).json({ error: 'PR number is required' });
+    }
+
+    if (!req.body.items || req.body.items.length === 0) {
+      await pool.query('ROLLBACK');
+      return res.status(400).json({ error: 'At least one line item is required' });
+    }
+
+    const prNum = req.body.requisition.pr_num;
+
+    // Check for existing items with a single query
+    const [existingItems] = await pool.query(
+      `SELECT pr_num, pr_itm_num FROM requistion_items_1 
+       WHERE pr_num = ? AND pr_itm_num IN (?)`,
+      [prNum, req.body.items.map(item => item.pr_itm_num)]
+    );
+
+    if (existingItems.length > 0) {
+      await pool.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: 'Some line items already exist for this PR',
+        duplicateItems: existingItems
+      });
+    }
+
+    // Check/insert requisition
+    const [existingRequisition] = await pool.query(
+      `SELECT id FROM requisitions_1 WHERE pr_num = ? LIMIT 1`,
+      [prNum]
+    );
+
+    let prId;
+    if (!existingRequisition || existingRequisition.length === 0) {
+      const [prResult] = await pool.query(
+        `INSERT INTO requisitions_1(
+          pr_num, department_id, department_code, requisitioned_by,
+          requisition_date, status, remarks, pr_type, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          prNum,
+          req.body.requisition.department_id,
+          req.body.requisition.department_code,
+          req.body.requisition.requisitioned_by,
+          convertODataDateToOriginal(req.body.requisition.requisition_date),
+          req.body.requisition.status || 'pending',
+          req.body.requisition.remarks || '',
+          req.body.requisition.pr_type || 'standard'
+        ]
+      );
+      prId = prResult.insertId;
+    } else {
+      prId = existingRequisition[0].id;
+    }
+
+    // Batch insert all items
+    const values = req.body.items.map(item => [
+      prId,
+      prNum,
+      item.pr_itm_num,
+      item.item_code,
+      item.quantity_requested,
+      item.unit,
+      item.approx_cost,
+      item.material_description,
+      convertODataDateToOriginal(item.approxdateofret),
+      item.currency,
+      item.status || 'pending',
+      new Date()
+    ]);
+
+    await pool.query(
+      `INSERT INTO requistion_items_1(
+        requisition_id, pr_num, pr_itm_num, item_code,
+        quantity_requested, unit, approx_cost, material_description,
+        approxdateofret, currency, status, created_at
+      ) VALUES ?`,
+      [values]
+    );
+
+    await pool.query('COMMIT');
+    
+    res.json({
+      success: true,
+      prId: prId,
+      message: 'PR submitted successfully',
+      itemCount: req.body.items.length
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Database error:', error);
+    res.status(500).json({ 
+      error: 'Error creating requisition',
+      details: error.message
+    });
+  }
+});
+
 app.get('/api/sap/purchreq', async (req, res) => {
   console.log('Initiating SAP Service PR fetch with smart pagination and DB sync...');
   
@@ -133,7 +293,7 @@ app.get('/api/sap/purchreq', async (req, res) => {
     let retryCount = 0;
     let totalFetched = 0;
 
-    // PHASE 1: Fetch all products from SAP
+    // PHASE 1: Fetch all PRs from SAP
     while (hasMore && retryCount < SAP_CONFIG.MAX_RETRIES) {
       try {
         const url = `${SAP_CONFIG.BASE_URL}/YY1_pur_reqn1?$format=json&$top=${SAP_CONFIG.BATCH_SIZE}&$skip=${skip}`;
@@ -175,71 +335,139 @@ app.get('/api/sap/purchreq', async (req, res) => {
       }
     }
 
-    // Transform data
-    const formattedPr = allPr.map(Purchasereq=> ({
-        pr_num: Purchasereq.PurchaseRequisition,
-        pr_itm_num: Purchasereq.PurchaseRequisitionItem,
-        itm_code: Purchasereq.Material,
-        Requester: Purchasereq.RequisitionerName,
-        itm_qty: Purchasereq.RequestedQuantity,
-        ExpDateofreturn: Purchasereq.DeliveryDate,
-        PrType: Purchasereq.PurchaseRequisitionType,
-        Dept_Code:  Purchasereq.Code,
-        Dept_Code_txt: Purchasereq.Code_Text,
-        ItemnetAmt:Purchasereq.ItemNetAmount,
-        Currency: Purchasereq.PurReqnItemCurrency,
-        Status:  Purchasereq.PurReqnReleaseStatus,
-        UOM: Purchasereq.BaseUnit,
-        PrDate: Purchasereq.PurchaseReqnCreationDate,
-        Pr_itm_txt: Purchasereq.PurchaseRequisitionItemText
-    }));
+    // Debug: Log all raw records before processing
+    console.log(`Total records fetched from SAP: ${allPr.length}`);
+    console.log('Sample records:', allPr.slice(0, 3));
+
+    // Group PR items by requisition number
+    const prGroups = allPr.reduce((acc, current) => {
+      const prNum = current.PurchaseRequisition;
+      if (!acc[prNum]) {
+        acc[prNum] = [];
+      }
+      acc[prNum].push(current);
+      return acc;
+    }, {});
+
+    // Debug: Log grouped data
+    console.log(`Grouped into ${Object.keys(prGroups).length} PRs`);
+
+    // Transform all items (not just first item of each group)
+    const allItems = [];
+    Object.entries(prGroups).forEach(([prNum, items]) => {
+      items.forEach(item => {
+        allItems.push({
+          pr_num: item.PurchaseRequisition,
+          pr_itm_num: item.PurchaseRequisitionItem,
+          itm_code: item.Material,
+          Requester: item.RequisitionerName,
+          itm_qty: item.RequestedQuantity,
+          ExpDateofreturn: item.DeliveryDate,
+          PrType: item.PurchaseRequisitionType,
+          Dept_Code: item.Code,
+          Dept_Code_txt: item.Code_Text,
+          ItemnetAmt: item.ItemNetAmount,
+          Currency: item.PurReqnItemCurrency,
+          Status: item.PurReqnReleaseStatus,
+          UOM: item.BaseUnit,
+          PrDate: item.PurchaseReqnCreationDate,
+          Pr_itm_txt: item.PurchaseRequisitionItemText,
+          pr_desc: item.PurReqnDescription
+        });
+      });
+    });
+
+    // Debug: Log transformed items count
+    console.log(`Total items to insert: ${allItems.length}`);
 
     // PHASE 2: Database Synchronization
     console.log('Starting database synchronization...');
     await pool.query('START TRANSACTION');
 
     try {
-      // 1. Get current count from database
       const [dbCountResult] = await pool.query('SELECT COUNT(*) as count FROM purchasereqn_new');
       const currentDbCount = dbCountResult[0].count;
 
-      // 2. Compare counts
-      if (formattedPr.length > currentDbCount) {
-        console.log(`Updating database (SAP: ${formattedPr.length} vs DB: ${currentDbCount})`);
+      // Always refresh the data (or compare counts if you prefer)
+      console.log(`Refreshing database (SAP: ${allItems.length} items vs DB: ${currentDbCount})`);
+      
+      await pool.query('TRUNCATE TABLE purchasereqn_new');
+      
+      const batchSize = 500;
+      for (let i = 0; i < allItems.length; i += batchSize) {
+        const batch = allItems.slice(i, i + batchSize);
+        const values = batch.map(pr => [  
+          pr.pr_num,
+          pr.pr_itm_num,
+          pr.itm_code,
+          pr.Requester,
+          pr.itm_qty,
+          convertODataDateToOriginal(pr.ExpDateofreturn),
+          pr.PrType,
+          pr.Dept_Code,
+          pr.Dept_Code_txt,
+          pr.ItemnetAmt,
+          pr.Currency,
+          pr.Status,
+          pr.UOM,
+          convertODataDateToOriginal(pr.PrDate),
+          pr.Pr_itm_txt
+        ]);
         
-        // 3. Truncate table for full refresh (or implement incremental update)
-        await pool.query('TRUNCATE TABLE purchasereqn_new');
+        await pool.query(
+          `INSERT INTO purchasereqn_new 
+           (pr_num, pr_itm_num, itm_code, Requester, itm_qty, 
+            ExpDateofreturn, PrType, Dept_Code, Dept_Code_txt, 
+            ItemnetAmt, Currency, Status, UOM, PrDate, Pr_itm_txt) 
+           VALUES ?`,
+          [values]
+        );
         
-        // 4. Insert all new records in batches
-        const batchSize = 500; // Adjust based on your DB performance
-        for (let i = 0; i < formattedPr.length; i += batchSize) {
-          const batch = formattedPr.slice(i, i + batchSize);
-          const values = batch.map(pr => [  pr.pr_num,pr.pr_itm_num,pr.itm_code,pr.Requester,pr.itm_qty
-                                            ,pr.ExpDateofreturn,pr.PrType,pr.Dept_Code,pr.Dept_Code_txt,
-                                            pr.ItemnetAmt,pr.Currency,pr.Status,pr.UOM,pr.PrDate,
-                                            pr.Pr_itm_txt  ]);
-          
-          await pool.query(
-            'INSERT INTO purchasereqn_new (pr_num,pr_itm_num,itm_code,Requester,itm_qty,ExpDateofreturn,PrType,Dept_Code,Dept_Code_txt,ItemnetAmt,Currency,Status,UOM,PrDate,Pr_itm_txt) VALUES ?',
-            [values]
-          );
-          
-          console.log(`Inserted ${batch.length} records (Total: ${Math.min(i + batchSize, formattedPr.length)})`);
-        }
-        
-        console.log('Database synchronization completed successfully');
-      } else {
-        console.log('No database update needed - SAP count <= DB count');
+        console.log(`Inserted ${batch.length} records (Total: ${Math.min(i + batchSize, allItems.length)})`);
       }
 
       await pool.query('COMMIT');
 
+      // Verify the count in database
+      const [newCountResult] = await pool.query('SELECT COUNT(*) as count FROM purchasereqn_new');
+      const newDbCount = newCountResult[0].count;
+      console.log(`Database now contains ${newDbCount} records`);
+
+      // Group the data for the frontend
+      const groupedData = Object.entries(prGroups).map(([prNum, items]) => {
+        const firstItem = items[0];
+        return {
+          requisition: {
+            pr_num: prNum,
+            department_id: firstItem.Code,
+            department_code: firstItem.Code_Text,
+            requisitioned_by: firstItem.RequisitionerName,
+            requisition_date: convertODataDateToOriginal(firstItem.PurchaseReqnCreationDate),
+            status: 'pending',
+            remarks: firstItem.PurReqnDescription || '',
+            pr_type: firstItem.PurchaseRequisitionType || 'standard'
+          },
+          items: items.map(item => ({
+            pr_itm_num: item.PurchaseRequisitionItem,
+            item_code: item.Material,
+            quantity_requested: item.RequestedQuantity,
+            unit: item.BaseUnit,
+            approx_cost: item.ItemNetAmount,
+            material_description: item.PurchaseRequisitionItemText,
+            approxdateofret: convertODataDateToOriginal(item.DeliveryDate),
+            currency: item.PurReqnItemCurrency,
+            status: 'pending'
+          }))
+        };
+      });
+      
       res.json({
         success: true,
-        totalCount: formattedPr.length,
+        totalCount: allItems.length,
         dbCountBefore: currentDbCount,
-        dbUpdated: formattedPr.length > currentDbCount,
-        products: formattedPr
+        dbCountAfter: newDbCount,
+        dbUpdated: true,
+        requisitions: groupedData
       });
 
     } catch (dbError) {
@@ -249,11 +477,7 @@ app.get('/api/sap/purchreq', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Final error:', {
-      message: error.message,
-      stack: error.stack
-    });
-    
+    console.error('Final error:', error);
     res.status(500).json({ 
       error: 'Failed to complete operation',
       details: error.message,
@@ -262,19 +486,12 @@ app.get('/api/sap/purchreq', async (req, res) => {
   }
 });
 
+// ==================== OTHER ENDPOINTS ====================
 
-
-
-// ==================== ERROR HANDLING ====================
-
-
-
-/// Create new requisition
 app.post('/api/requisitions', async (req, res) => {
   try {
     const { serviceIndentNo, department, items, requisitionedBy, userId } = req.body;
     
-    // Validate required fields
     if (!department || isNaN(department)) {
       return res.status(400).json({ 
         error: 'Invalid department',
@@ -284,7 +501,6 @@ app.post('/api/requisitions', async (req, res) => {
 
     await pool.query('START TRANSACTION');
     
-    // Insert requisition
     const [result] = await pool.query(
       `INSERT INTO requisitions 
        (service_indent_no, user_id, department_id, requisitioned_by, requisition_date, status) 
@@ -294,7 +510,6 @@ app.post('/api/requisitions', async (req, res) => {
     
     const requisitionId = result.insertId;
     
-    // Insert requisition items
     for (const item of items) {
       await pool.query(
         `INSERT INTO req_items
@@ -307,7 +522,7 @@ app.post('/api/requisitions', async (req, res) => {
           item.quantityReq || 0,
           item.unit || '',
           item.approxCost || 0,
-          item.approxdateofreturn || null,
+          convertODataDateToOriginal(item.approxdateofreturn),
           item.remarks || ''
         ]
       );
@@ -332,8 +547,6 @@ app.post('/api/requisitions', async (req, res) => {
   }
 });
 
-
-// Get requisitions by user ID
 app.get('/api/requisitions/:userId', async (req, res) => {
   try {
     const [requisitions] = await pool.query(
@@ -345,7 +558,6 @@ app.get('/api/requisitions/:userId', async (req, res) => {
       [req.params.userId]
     );
 
-    // Get items for each requisition
     for (const req of requisitions) {
       const [items] = await pool.query(
         'SELECT * FROM req_items WHERE requisition_id = ?',
@@ -360,11 +572,6 @@ app.get('/api/requisitions/:userId', async (req, res) => {
   }
 });
 
-
-// ==================== STORE MANAGEMENT ENDPOINTS ====================
-
-
-// Get requisitions by status
 app.get('/api/requisitions', async (req, res) => {
   try {
     const { status } = req.query;
@@ -374,19 +581,17 @@ app.get('/api/requisitions', async (req, res) => {
     }
 
     const [requisitions] = await pool.query(
-      `SELECT r.*, d.name as department_name 
-       FROM requisitions r
-       JOIN departments d ON r.department_id = d.id
+      `SELECT pr_num, department_id, department_code, requisitioned_by,
+       requisition_date, status, remarks FROM requisitions_1 r
        WHERE r.status = ?
        ORDER BY r.requisition_date DESC`,
       [status]
     );
 
-    // Get items for each requisition
     for (const req of requisitions) {
       const [items] = await pool.query(
-        'SELECT * FROM req_items WHERE requisition_id = ?',
-        [req.id]
+        'SELECT * FROM requistion_items_1 WHERE pr_num = ?',
+        [req.pr_num]
       );
       req.items = items;
     }
@@ -401,8 +606,6 @@ app.get('/api/requisitions', async (req, res) => {
   }
 });
 
-
-// Update requisition status
 app.put('/api/requisitions/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
@@ -434,7 +637,6 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
   }
 });
 
-// Create new gate pass
 app.post('/api/gatepasses', async (req, res) => {
   try {
     const { 
@@ -450,7 +652,6 @@ app.post('/api/gatepasses', async (req, res) => {
 
     await pool.query('START TRANSACTION');
 
-    // Insert gate pass
     const [result] = await pool.query(
       `INSERT INTO gatepasses
        (gate_pass_no, requisition_id, fiscal_year, document_type, issued_by, authorized_by, remarks, status)
@@ -460,7 +661,6 @@ app.post('/api/gatepasses', async (req, res) => {
 
     const gatePassId = result.insertId;
 
-    // Insert gate pass items
     for (const item of items) {
       await pool.query(
         `INSERT INTO gate_pass_items
@@ -497,6 +697,7 @@ app.post('/api/gatepasses', async (req, res) => {
 });
 
 // ==================== ERROR HANDLING ====================
+
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });

@@ -193,19 +193,7 @@ const Layout = () => {
           />
         </SAPListItem>
         
-        <SAPListItem 
-          button 
-          onClick={() => navigate('/my-requisitions')}
-          selected={isActive('/my-requisitions')}
-        >
-          <ListItemIcon sx={{ minWidth: '36px' }}>
-            <ListAltIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText 
-            primary="My Requisitions" 
-            primaryTypographyProps={{ variant: 'body2', fontWeight: isActive('/my-requisitions') ? 600 : 400 }}
-          />
-        </SAPListItem>
+        
       </List>
       
       {/* System Section */}
@@ -255,30 +243,16 @@ const Layout = () => {
             alignItems: 'center',
             flexGrow: 1
           }}>
-            <ButtonGroup variant="text" sx={{ height: '64px' }}>
-              <HeaderButton 
-                onClick={() => navigate('/')}
-                selected={isActive('/')}
-                startIcon={<DashboardIcon />}
-              >
-                Dashboard
-              </HeaderButton>
-              <HeaderButton 
-                onClick={() => navigate('/create-requisition')}
-                selected={isActive('/create-requisition')}
-                startIcon={<PostAddIcon />}
-              >
-                Create Requisition
-              </HeaderButton>
-              <HeaderButton 
-                onClick={() => navigate('/my-requisitions')}
-                selected={isActive('/my-requisitions')}
-                startIcon={<ListAltIcon />}
-              >
-                My Requisitions
-              </HeaderButton>
-             
-            </ButtonGroup>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <img 
+            src="https://www.sap.com/dam/application/shared/logos/sap-logo-svg.svg" 
+            alt="SAP Logo" 
+            style={{ height: 24 }} 
+          />
+          <Typography variant="subtitle2" sx={{ ml: 1, fontWeight: 600 }}>
+            Requisition Portal
+          </Typography>
+        </Box>
           </Box>
           
           {/* Right side icons */}

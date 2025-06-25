@@ -114,6 +114,8 @@ const StoreDashboard = () => {
 
       const response = await axios.get('http://localhost:5000/api/requisitions', { params });
       setRequisitions(response.data);
+      console.log(requisitions);
+
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch requisitions');
       console.error('Error fetching requisitions:', err);
@@ -121,7 +123,6 @@ const StoreDashboard = () => {
       setLoading(false);
     }
   };
-
   const generateGatePassNo = () => {
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
@@ -670,7 +671,7 @@ const StoreDashboard = () => {
                       mb: 1
                     }}>
                       <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                        {requisition.service_indent_no}
+                        {requisition.pr_num}
                       </Typography>
                       <Chip 
                         label={requisition.status} 
@@ -691,7 +692,7 @@ const StoreDashboard = () => {
                     )}
                     
                     <Typography variant="body2" sx={{ mb: 1, color: sapColors.secondary }}>
-                      Department: {requisition.department_name || 'N/A'}
+                      Department: {requisition.department_code|| 'N/A'}
                     </Typography>
                     
                     <Typography variant="body2" sx={{ mb: 1, color: sapColors.secondary }}>
