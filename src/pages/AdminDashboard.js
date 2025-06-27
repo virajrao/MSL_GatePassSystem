@@ -12,10 +12,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
   Chip,
   CircularProgress,
   Alert,
@@ -36,7 +32,11 @@ import {
   TableHead,
   TableRow,
   InputAdornment,
+  InputLabel,
+  Select,
+  MenuItem,
   Paper,
+  FormControl
 } from '@mui/material';
 import {
   PendingActions,
@@ -52,7 +52,8 @@ import {
   VerifiedUser,
   Note,
   ConfirmationNumber,
-  Assignment,
+  Gavel,
+  Assignment
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -64,14 +65,14 @@ const colors = {
   warning: '#F0AD4E',
   danger: '#D9534F',
   light: '#F5F5F5',
-  dark: '#1A252F',
+  dark: '#0A6ED1', // Professional dark navy for sidebar
   background: '#F7F7F7',
   text: '#FFFFFF',
 };
 
 const drawerWidth = 240;
 
-const StoreDashboard = () => {
+const AdminDashboard = () => {
   const navigate = useNavigate();
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,58 +80,21 @@ const StoreDashboard = () => {
   const [error, setError] = useState(null);
   const [selectedRequisition, setSelectedRequisition] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [openSupplierDialog, setOpenSupplierDialog] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success',
   });
-  const [passData, setPassData] = useState({
-    gatePassNo: '',
-    fiscalYear: new Date().getFullYear(),
-    documentType: 'RGP',
-    issuedBy: '',
-    authorizedBy: '',
-    remarks: '',
-    transporterName: '',
-    transporterGSTIN: '',
-    ewaybillNo: '',
-    uNo: '',
-    physicalChallanNum: '',
-    challanDate: new Date().toISOString().split('T')[0],
-    transactionDate: new Date().toISOString().split('T')[0],
-    buyerName: '',
-    approvalAuthority: '',
-    vehicleNum: '',
-    supplierId: '',
-    supplierName: '',
-    supplierAddress: '',
-    supplierGSTIN: '',
-    supplierContact: '',
-  });
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState('storeapprove');
   const [filter, setFilter] = useState({
     dateRange: 'all',
     page: 1,
     limit: 20,
     hasMore: true,
   });
-  const [supplierOptions, setSupplierOptions] = useState([]);
-  const [filteredSuppliers, setFilteredSuppliers] = useState([]);
-  const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
-  const [supplierLoading, setSupplierLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const observer = useRef();
   const containerRef = useRef();
-
-  const generateGatePassNo = () => {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    return `GP-${year}${month}-${randomNum}`;
-  };
 
   const lastRequisitionRef = useCallback(
     (node) => {
@@ -157,10 +121,9 @@ const StoreDashboard = () => {
         page: reset ? 1 : filter.page,
         limit: filter.limit,
       };
-      const response = await axios.get('http://localhost:5000/api/requisitions', { params });
+      const response = await axios.get('http://localhost:5000/api/requisitionsdet', { params });
       if (reset) {
         setRequisitions(response.data);
-        console.log(response.data)
       } else {
         setRequisitions((prev) => [...prev, ...response.data]);
       }
@@ -186,63 +149,8 @@ const StoreDashboard = () => {
     }
   }, [filter.page]);
 
-  const fetchSuppliers = async (searchTerm = '') => {
-    try {
-      setSupplierLoading(true);
-      const response = await axios.get('http://localhost:5000/api/sap/suppliers', {
-        params: { search: searchTerm },
-      });
-      setSupplierOptions(response.data);
-      setFilteredSuppliers(response.data);
-    } catch (err) {
-      console.error('Error fetching suppliers:', err);
-      setSnackbar({
-        open: true,
-        message: 'Failed to fetch suppliers',
-        severity: 'error',
-      });
-    } finally {
-      setSupplierLoading(false);
-    }
-  };
-
-  const handleOpenSupplierDialog = () => {
-    setOpenSupplierDialog(true);
-    if (supplierOptions.length === 0) {
-      fetchSuppliers();
-    }
-  };
-
-  const handleSelectSupplier = (supplier) => {
-    setPassData({
-      ...passData,
-      supplierId: supplier.id || '',
-      supplierName: supplier.name || '',
-      supplierAddress: supplier.address || '',
-      supplierGSTIN: supplier.gstin || '',
-      supplierContact: supplier.contact || '',
-    });
-    setOpenSupplierDialog(false);
-  };
-
   const handleOpenDialog = (requisition) => {
-    console.log(requisition)
-    if (!requisition || !requisition.id) {
-      setSnackbar({
-        open: true,
-        message: 'Invalid requisition selected',
-        severity: 'error',
-      });
-      return;
-    }
     setSelectedRequisition(requisition);
-    setPassData({
-      ...passData,
-      gatePassNo: generateGatePassNo(),
-      issuedBy: localStorage.getItem('username') || '',
-      challanDate: new Date().toISOString().split('T')[0],
-      transactionDate: new Date().toISOString().split('T')[0],
-    });
     setOpenDialog(true);
   };
 
@@ -251,54 +159,21 @@ const StoreDashboard = () => {
     setSelectedRequisition(null);
   };
 
-  const handlePassDataChange = (e) => {
-    const { name, value } = e.target;
-    setPassData({
-      ...passData,
-      [name]: value || '',
-    });
-  };
-
-  const handleSave = async () => {
-    if (!selectedRequisition || !selectedRequisition.id) {
-      setSnackbar({
-        open: true,
-        message: 'No requisition selected',
-        severity: 'error',
-      });
-      return;
-    }
-
-    // Validate required fields
-    const requiredFields = ['gatePassNo', 'documentType', 'fiscalYear', 'issuedBy'];
-    const missingFields = requiredFields.filter((field) => !passData[field]);
-    if (missingFields.length > 0) {
-      setSnackbar({
-        open: true,
-        message: `Missing required fields: ${missingFields.join(', ')}`,
-        severity: 'error',
-      });
-      return;
-    }
-
+  const handleHigherApproval = async (status) => {
     try {
-      const payload = {
-        status: 'storeapprove',
-        ...passData,
-      };
-      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, payload);
+      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/higher-approval`, { status });
       setSnackbar({
         open: true,
-        message: `Gate pass created successfully for requisition ${selectedRequisition.pr_num}!`,
+        message: `Requisition ${selectedRequisition.pr_num} ${status === 'higherauthapprove' ? 'approved' : status === 'rejected' ? 'rejected' : 'completed'} successfully!`,
         severity: 'success',
       });
       setRequisitions((prev) => prev.filter((req) => req.id !== selectedRequisition.id));
       handleCloseDialog();
     } catch (err) {
-      console.error('Error approving requisition:', err);
+      console.error('Error updating higher approval:', err);
       setSnackbar({
         open: true,
-        message: err.response?.data?.error || err.response?.data?.details || 'Failed to create gate pass',
+        message: err.response?.data?.error || 'Failed to update requisition status',
         severity: 'error',
       });
     }
@@ -309,7 +184,7 @@ const StoreDashboard = () => {
   };
 
   const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+    setMobileOpen((prev) => !prev);
   };
 
   const getStatusColor = (status) => {
@@ -328,17 +203,19 @@ const StoreDashboard = () => {
     }
   };
 
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const drawer = (
     <Box sx={{ backgroundColor: colors.dark, color: colors.text, height: '100%', p: 2 }}>
       <Typography variant="h6" sx={{ p: 2, fontWeight: 'bold' }}>
-        Store Management
+        Admin Approval
       </Typography>
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
       <List>
         <ListItem disablePadding>
           <ListItemButton
-            selected={activeTab === 'pending'}
-            onClick={() => setActiveTab('pending')}
+            selected={activeTab === 'storeapprove'}
+            onClick={() => setActiveTab('storeapprove')}
             sx={{ borderRadius: 1, '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
           >
             <ListItemIcon sx={{ color: colors.text }}>
@@ -399,9 +276,9 @@ const StoreDashboard = () => {
             <Menu />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Store Dashboard
+            Admin Dashboard
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 , alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <TextField
               variant="outlined"
               size="small"
@@ -495,7 +372,7 @@ const StoreDashboard = () => {
           >
             <PendingActions sx={{ fontSize: 60, color: colors.secondary, mb: 2 }} />
             <Typography variant="h6" sx={{ color: colors.secondary }}>
-              No {activeTab} requisitions found
+              No {activeTab === 'storeapprove' ? 'pending' : activeTab === 'higherauthapprove' ? 'approved' : 'rejected'} requisitions found
             </Typography>
           </Box>
         ) : (
@@ -569,7 +446,7 @@ const StoreDashboard = () => {
                       onClick={() => handleOpenDialog(requisition)}
                       sx={{ backgroundColor: colors.primary, '&:hover': { backgroundColor: '#085c9e' } }}
                     >
-                      {requisition.status === 'pending' ? 'Create' : 'View Details'}
+                      View Details
                     </Button>
                   </Box>
                 </Card>
@@ -582,61 +459,6 @@ const StoreDashboard = () => {
             <CircularProgress />
           </Box>
         )}
-        <Dialog open={openSupplierDialog} onClose={() => setOpenSupplierDialog(false)} maxWidth="md" fullWidth>
-          <DialogTitle sx={{ backgroundColor: colors.light, borderBottom: `1px solid ${colors.secondary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              Select Supplier
-            </Typography>
-            <IconButton onClick={() => setOpenSupplierDialog(false)} size="small">
-              <Cancel />
-            </IconButton>
-          </DialogTitle>
-          <DialogContent>
-            <Box sx={{ p: 2 }}>
-              {filteredSuppliers.length === 0 ? (
-                <Typography variant="body1" sx={{ textAlign: 'center', p: 2 }}>
-                  {supplierLoading ? 'Loading suppliers...' : 'No suppliers found'}
-                </Typography>
-              ) : (
-                <TableContainer component={Paper}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Supplier ID</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Address</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>GSTIN</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredSuppliers.map((supplier) => (
-                        <TableRow
-                          key={supplier.id}
-                          onClick={() => handleSelectSupplier(supplier)}
-                          sx={{ cursor: 'pointer', '&:hover': { backgroundColor: '#f0f7ff' } }}
-                        >
-                          <TableCell>{supplier.id}</TableCell>
-                          <TableCell>{supplier.name}</TableCell>
-                          <TableCell>{supplier.address}</TableCell>
-                          <TableCell>{supplier.gstin}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => setOpenSupplierDialog(false)}
-              sx={{ borderColor: colors.secondary, color: colors.secondary }}
-            >
-              Cancel
-            </Button>
-          </DialogActions>
-        </Dialog>
         <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '800px' } }}>
           <DialogTitle sx={{ backgroundColor: colors.light, borderBottom: `1px solid ${colors.secondary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
@@ -660,8 +482,7 @@ const StoreDashboard = () => {
                           label="Gate Pass Number"
                           fullWidth
                           size="small"
-                          name="gatePassNo"
-                          value={passData.gatePassNo}
+                          value={selectedRequisition?.gate_pass_no || ''}
                           disabled
                           InputProps={{ startAdornment: <Assignment sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
@@ -671,24 +492,18 @@ const StoreDashboard = () => {
                           label="Document Type"
                           fullWidth
                           size="small"
-                          name="documentType"
-                          value={passData.documentType}
-                          onChange={handlePassDataChange}
-                          select
+                          value={selectedRequisition?.document_type || ''}
+                          disabled
                           InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        >
-                          <MenuItem value="RGP">Returnable Gate Pass (RGP)</MenuItem>
-                          <MenuItem value="NRGP">Non-Returnable Gate Pass (NRGP)</MenuItem>
-                        </TextField>
+                        />
                       </Grid>
                       <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Fiscal Year"
                           fullWidth
                           size="small"
-                          name="fiscalYear"
-                          value={passData.fiscalYear}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.fiscal_year || ''}
+                          disabled
                           InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -697,9 +512,8 @@ const StoreDashboard = () => {
                           label="Issued By"
                           fullWidth
                           size="small"
-                          name="issuedBy"
-                          value={passData.issuedBy}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.issued_by || ''}
+                          disabled
                           InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -708,9 +522,8 @@ const StoreDashboard = () => {
                           label="Authorized By"
                           fullWidth
                           size="small"
-                          name="authorizedBy"
-                          value={passData.authorizedBy}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.authorized_by || ''}
+                          disabled
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -719,9 +532,8 @@ const StoreDashboard = () => {
                           label="Buyer Name"
                           fullWidth
                           size="small"
-                          name="buyerName"
-                          value={passData.buyerName}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.buyer_name || ''}
+                          disabled
                           InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -730,9 +542,8 @@ const StoreDashboard = () => {
                           label="Approval Authority"
                           fullWidth
                           size="small"
-                          name="approvalAuthority"
-                          value={passData.approvalAuthority}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.approval_authority || ''}
+                          disabled
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -761,29 +572,17 @@ const StoreDashboard = () => {
                 </Grid>
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2, mb: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-                        <Business sx={{ mr: 1 }} /> Supplier Information
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<SearchIcon />}
-                        onClick={handleOpenSupplierDialog}
-                        sx={{ borderColor: colors.primary, color: colors.primary, '&:hover': { backgroundColor: '#f0f7ff', borderColor: colors.primary } }}
-                      >
-                        Select Supplier
-                      </Button>
-                    </Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center' }}>
+                      <Business sx={{ mr: 1 }} /> Supplier Information
+                    </Typography>
                     <Grid container spacing={2}>
                       <Grid item xs={12} sm={6} md={4}>
                         <TextField
                           label="Supplier Name"
                           fullWidth
                           size="small"
-                          name="supplierName"
-                          value={passData.supplierName}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.supplier_name || ''}
+                          disabled
                           InputProps={{ startAdornment: <Business sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -792,9 +591,8 @@ const StoreDashboard = () => {
                           label="Supplier GSTIN"
                           fullWidth
                           size="small"
-                          name="supplierGSTIN"
-                          value={passData.supplierGSTIN}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.supplier_gstin || ''}
+                          disabled
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -803,9 +601,8 @@ const StoreDashboard = () => {
                           label="Supplier Contact"
                           fullWidth
                           size="small"
-                          name="supplierContact"
-                          value={passData.supplierContact}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.supplier_contact || ''}
+                          disabled
                           InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -814,9 +611,8 @@ const StoreDashboard = () => {
                           label="Supplier Address"
                           fullWidth
                           size="small"
-                          name="supplierAddress"
-                          value={passData.supplierAddress}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.supplier_address || ''}
+                          disabled
                           multiline
                           rows={2}
                           InputProps={{ startAdornment: <Note sx={{ color: colors.secondary, mr: 1, alignSelf: 'flex-start' }} /> }}
@@ -836,9 +632,8 @@ const StoreDashboard = () => {
                           label="Transporter Name"
                           fullWidth
                           size="small"
-                          name="transporterName"
-                          value={passData.transporterName}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.transporter_name || ''}
+                          disabled
                           InputProps={{ startAdornment: <Business sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -847,9 +642,8 @@ const StoreDashboard = () => {
                           label="Transporter GSTIN"
                           fullWidth
                           size="small"
-                          name="transporterGSTIN"
-                          value={passData.transporterGSTIN}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.transporter_gstin || ''}
+                          disabled
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -858,9 +652,8 @@ const StoreDashboard = () => {
                           label="Vehicle Number"
                           fullWidth
                           size="small"
-                          name="vehicleNum"
-                          value={passData.vehicleNum}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.vehicle_num || ''}
+                          disabled
                           InputProps={{ startAdornment: <LocalShipping sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -869,9 +662,8 @@ const StoreDashboard = () => {
                           label="E-Way Bill No"
                           fullWidth
                           size="small"
-                          name="ewaybillNo"
-                          value={passData.ewaybillNo}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.ewaybill_no || ''}
+                          disabled
                           InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -880,9 +672,8 @@ const StoreDashboard = () => {
                           label="U No"
                           fullWidth
                           size="small"
-                          name="uNo"
-                          value={passData.uNo}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.u_no || ''}
+                          disabled
                           InputProps={{ startAdornment: <ConfirmationNumber sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -922,7 +713,7 @@ const StoreDashboard = () => {
                 </Grid>
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display_access: 'flex', alignItems: 'center' }}>
                       <Note sx={{ mr: 1 }} /> Additional Information
                     </Typography>
                     <Grid container spacing={2}>
@@ -931,9 +722,8 @@ const StoreDashboard = () => {
                           label="Physical Challan Number"
                           fullWidth
                           size="small"
-                          name="physicalChallanNum"
-                          value={passData.physicalChallanNum}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.physical_challan_num || ''}
+                          disabled
                           InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -942,10 +732,8 @@ const StoreDashboard = () => {
                           label="Challan Date"
                           fullWidth
                           size="small"
-                          name="challanDate"
-                          type="date"
-                          value={passData.challanDate}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.challan_date || ''}
+                          disabled
                           InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -954,10 +742,8 @@ const StoreDashboard = () => {
                           label="Transaction Date"
                           fullWidth
                           size="small"
-                          name="transactionDate"
-                          type="date"
-                          value={passData.transactionDate}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.transaction_date || ''}
+                          disabled
                           InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -966,9 +752,8 @@ const StoreDashboard = () => {
                           label="Remarks"
                           fullWidth
                           size="small"
-                          name="remarks"
-                          value={passData.remarks}
-                          onChange={handlePassDataChange}
+                          value={selectedRequisition?.details_remarks || ''}
+                          disabled
                           multiline
                           rows={2}
                           InputProps={{ startAdornment: <Note sx={{ color: colors.secondary, mr: 1, alignSelf: 'flex-start' }} /> }}
@@ -988,14 +773,30 @@ const StoreDashboard = () => {
             >
               Cancel
             </Button>
-            {selectedRequisition?.status === 'pending' && (
-              <Button
-                variant="contained"
-                onClick={handleSave}
-                sx={{ backgroundColor: colors.primary, '&:hover': { backgroundColor: '#085c9e' } }}
-              >
-                Save
-              </Button>
+            {selectedRequisition?.status === 'storeapprove' && (
+              <>
+                <Button
+                  variant="contained"
+                  onClick={() => handleHigherApproval('higherauthapprove')}
+                  sx={{ backgroundColor: colors.success, '&:hover': { backgroundColor: '#4a9b4a' }, mr: 1 }}
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => handleHigherApproval('rejected')}
+                  sx={{ backgroundColor: colors.danger, '&:hover': { backgroundColor: '#c9302c' }, mr: 1 }}
+                >
+                  Reject
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => handleHigherApproval('completed')}
+                  sx={{ backgroundColor: colors.primary, '&:hover': { backgroundColor: '#085c9e' } }}
+                >
+                  Complete
+                </Button>
+              </>
             )}
           </DialogActions>
         </Dialog>
@@ -1014,4 +815,4 @@ const StoreDashboard = () => {
   );
 };
 
-export default StoreDashboard;
+export default AdminDashboard;

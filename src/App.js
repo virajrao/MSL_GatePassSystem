@@ -8,6 +8,9 @@ import RequisitionDashboard from './pages/RequisitionDashboard';
 import Login from './pages/login';
 import Dashboard from './Components/Dashboard';
 import StoreDashboard from './pages/storeDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import SecurityDashboard from './pages/SecurityDashboard';
+import RoleGuard from './Components/RoleGaurd';
 
 const theme = createTheme({
   palette: {
@@ -31,14 +34,31 @@ function App() {
           
           {/* Protected routes */}
           <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/create-requisition" element={<UserRequisition />} />
-            <Route path="/my-requisitions" element={<RequisitionDashboard />} />
-            <Route path="/store-dashboard" element={<StoreDashboard />} />
+            <Route
+              path="/create-requisition"
+              element={<RoleGuard role="user"><UserRequisition /></RoleGuard>}
+            />
+            <Route
+              path="/my-requisitions"
+              element={<RoleGuard role="user"><RequisitionDashboard /></RoleGuard>}
+            />
+            <Route
+              path="/store-dashboard"
+              element={<RoleGuard role="store"><StoreDashboard /></RoleGuard>}
+            />
+            <Route
+              path="/admin-dashboard"
+              element={<RoleGuard role="admin"><AdminDashboard /></RoleGuard>}
+            />
+            <Route
+              path="/security-dashboard"
+              element={<RoleGuard role="security"><SecurityDashboard /></RoleGuard>}
+            />
           </Route>
 
-          {/* Default redirect for unauthenticated users */}
+          {/* Catch-all route for undefined paths */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
@@ -53,18 +73,7 @@ const ProtectedLayout = () => {
     return <Navigate to="/login" replace />;
   }
   
-  return (
-    <Layout>
-      <Routes>
-        {/* These nested routes will render inside the Layout component */}
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/create-requisition" element={<UserRequisition />} />
-        <Route path="/my-requisitions" element={<RequisitionDashboard />} />
-        <Route path="/store-dashboard" element={<StoreDashboard />} />
-      </Routes>
-    </Layout>
-  );
+  return <Layout />;
 };
 
 export default App;

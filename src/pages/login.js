@@ -22,6 +22,8 @@ export default function Login() {
     role: 'user'
   });
   const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState(''); // 'error' or 'success'
   const navigate = useNavigate();
 
   const validate = () => {
@@ -37,24 +39,34 @@ export default function Login() {
 
   const handleLogin = async () => {
     try {
-      const response = await loginUser ({
+      const response = await loginUser({
         username: formData.username,
         password: formData.password
       });
-
       if (response.data.success) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        navigate(`/`);
-
-        if (response.data.user.role === 'store') {
-          localStorage.setItem('store', JSON.stringify(response.data.user));
-          navigate(`/`);
-          navigate('/store-dashboard');
+        const user = response.data.user;
+        localStorage.setItem('user', JSON.stringify(user));
+        switch (user.role) {
+          case 'store':
+            navigate('/store-dashboard');
+            break;
+          case 'admin':
+            navigate('/admin-dashboard');
+            break;
+          case 'security':
+            navigate('/security-dashboard');
+            break;
+          default:
+            navigate('/dashboard');
+            break;
         }
-        
+      } else {
+        setMessage(response.data.error || 'Login failed');
+        setMessageType('error');
       }
     } catch (error) {
-      alert(error.response?.data?.error || 'Login failed');
+      setMessage(error.response?.data?.error || 'Login failed');
+      setMessageType('error');
     }
   };
 
@@ -62,18 +74,24 @@ export default function Login() {
     try {
       const response = await registerUser(formData);
       if (response.data.success) {
-        alert('Registration successful!');
         setIsLogin(true);
+        setMessage('Registration successful, please login.');
+        setMessageType('success');
+      } else {
+        setMessage(response.data.error || 'Registration failed');
+        setMessageType('error');
       }
     } catch (error) {
-      alert(error.response?.data?.error || 'Registration failed');
+      setMessage(error.response?.data?.error || 'Registration failed');
+      setMessageType('error');
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setMessage(''); // Clear previous messages
+    setMessageType('');
     if (!validate()) return;
-    
     isLogin ? handleLogin() : handleRegister();
   };
 
@@ -93,7 +111,11 @@ export default function Login() {
         <Typography variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
           {isLogin ? 'Login' : 'Register'}
         </Typography>
-        
+        {message && (
+          <Typography color={messageType === 'error' ? 'error' : 'success'} sx={{ mb: 2 }}>
+            {message}
+          </Typography>
+        )}
         <form onSubmit={handleSubmit}>
           <TextField
             label="Username"
@@ -105,7 +127,6 @@ export default function Login() {
             helperText={errors.username}
             sx={{ mb: 2 }}
           />
-          
           <TextField
             label="Password"
             type="password"
@@ -117,7 +138,6 @@ export default function Login() {
             helperText={errors.password}
             sx={{ mb: 2 }}
           />
-          
           {!isLogin && (
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Role</InputLabel>
@@ -132,7 +152,6 @@ export default function Login() {
               </Select>
             </FormControl>
           )}
-          
           <Button 
             type="submit" 
             variant="contained" 
@@ -148,7 +167,6 @@ export default function Login() {
             {isLogin ? 'Login' : 'Register'}
           </Button>
         </form>
-        
         <Box sx={{ 
           mt: 3, 
           textAlign: 'center',
@@ -163,9 +181,7 @@ export default function Login() {
               '&:hover': { textDecoration: 'underline' }
             }}
           >
-            {isLogin ? 
-              'Create new account' : 
-              'Already have an account? Sign in'}
+            {isLogin ? 'Create new account' : 'Already have an account? Sign in'}
           </Link>
         </Box>
       </Paper>
