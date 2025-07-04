@@ -289,7 +289,7 @@ const StoreDashboard = () => {
       await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, payload);
       setSnackbar({
         open: true,
-        message: `Gate pass created successfully for requisition ${selectedRequisition.pr_num}!`,
+        message: `Gate pass created successfully for Approval ${selectedRequisition.pr_num}!`,
         severity: 'success',
       });
       setRequisitions((prev) => prev.filter((req) => req.id !== selectedRequisition.id));

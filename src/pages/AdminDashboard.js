@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
@@ -52,11 +53,12 @@ import {
   VerifiedUser,
   Note,
   ConfirmationNumber,
-  Gavel,
-  Assignment
+  Print as PrintIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import MSLLogo from './MSL_Logo.png';
+import UnitedLogo from './United_logo.png';
 
 const colors = {
   primary: '#0A6ED1',
@@ -65,12 +67,241 @@ const colors = {
   warning: '#F0AD4E',
   danger: '#D9534F',
   light: '#F5F5F5',
-  dark: '#0A6ED1', // Professional dark navy for sidebar
+  dark: '#0A6ED1',
   background: '#F7F7F7',
   text: '#FFFFFF',
 };
 
 const drawerWidth = 240;
+const date = new Date();
+
+const NonReturnableChallan = ({ requisition }) => {
+  if (!requisition) {
+    return <Box>Loading challan...</Box>;
+  }
+
+  return (
+    <div data-testid="challan" style={{ 
+      padding: '20px', 
+      fontFamily: 'Arial, sans-serif',
+      backgroundColor: '#fff',
+      color: '#000',
+      lineHeight: '1.5',
+    }}>
+      <div style={{ 
+        width: '210mm', 
+        margin: '0 auto',
+        minHeight: '297mm',
+        padding: '20mm',
+        boxSizing: 'border-box',
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '30px'
+        }}>
+          <img 
+            src={MSLLogo} 
+            alt="MSL Logo" 
+            style={{ 
+              width: '80px',
+              height: 'auto',
+              objectFit: 'contain'
+            }} 
+          />
+          <div style={{ textAlign: 'center' }}>
+            <h1 style={{ 
+              marginLeft: '28px',
+              fontSize: '20px',
+              fontWeight: 'bold'
+            }}>
+              MAHARASHTRA SEAMLESS LIMITED
+            </h1>
+            <h2 style={{ 
+              marginTop: '-18px',
+              fontSize: '17px',
+              color: colors.primary
+            }}>
+              D.P. JINDAL GROUP OF INDUSTRIES
+            </h2>
+            <p style={{ margin: '5px 0 0 0' }}>
+              Sreepuram, Narketpally, Nalgonda-508254, Telangana
+            </p>
+          </div>
+          <img 
+            src={UnitedLogo} 
+            alt="United Logo" 
+            style={{ 
+              width: '100px',
+              height: 'auto',
+              objectFit: 'contain'
+            }} 
+          />
+        </div>
+
+        <h1 style={{ 
+          textAlign: 'center', 
+          margin: '20px 0 30px 0',
+          fontSize: '22px',
+          fontWeight: 'bold',
+          textDecoration: 'underline'
+        }}>
+          {requisition.document_type === 'RGP' ? 'Returnable Gate Pass' : 'Non-Returnable Gate Pass'}
+        </h1>
+
+        <div style={{ 
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: '30px'
+        }}>
+          <div style={{ width: '60%' }}>
+            <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>To:</p>
+            <p style={{ margin: '5px 0', minHeight: '20px' }}>
+              {requisition.supplier_name || ''}
+            </p>
+            <p style={{ margin: '5px 0', minHeight: '20px' }}>
+              {requisition.supplier_address || ''}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Gatepass No:</strong> {requisition.gate_pass_no || ''}
+            </p>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Date:</strong> {requisition.requisition_date ? new Date(requisition.requisition_date).toLocaleDateString() : ''}
+            </p>
+          </div>
+        </div>
+
+        <table style={{ 
+          width: '100%',
+          borderCollapse: 'collapse',
+          marginBottom: '30px',
+          fontSize: '14px'
+        }}>
+          <thead>
+            <tr>
+              <th style={{ 
+                border: '1px solid #000',
+                padding: '8px',
+                textAlign: 'center',
+                fontWeight: 'bold',
+                backgroundColor: '#f5f5f5'
+              }}>St. No</th>
+              <th style={{ 
+                border: '1px solid #000',
+                padding: '8px',
+                textAlign: 'center',
+                fontWeight: 'bold',
+                backgroundColor: '#f5f5f5'
+              }}>Particulars</th>
+              <th style={{ 
+                border: '1px solid #000',
+                padding: '8px',
+                textAlign: 'center',
+                fontWeight: 'bold',
+                backgroundColor: '#f5f5f5'
+              }}>Unit</th>
+              <th style={{ 
+                border: '1px solid #000',
+                padding: '8px',
+                textAlign: 'center',
+                fontWeight: 'bold',
+                backgroundColor: '#f5f5f5'
+              }}>Qty</th>
+              <th style={{ 
+                border: '1px solid #000',
+                padding: '8px',
+                textAlign: 'center',
+                fontWeight: 'bold',
+                backgroundColor: '#f5f5f5'
+              }}>Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            {requisition.items?.map((item, index) => (
+              <tr key={index}>
+                <td style={{ 
+                  border: '1px solid #000',
+                  padding: '8px',
+                  textAlign: 'center'
+                }}>{index + 1}</td>
+                <td style={{ 
+                  border: '1px solid #000',
+                  padding: '8px'
+                }}>{item.material_description}</td>
+                <td style={{ 
+                  border: '1px solid #000',
+                  padding: '8px',
+                  textAlign: 'center'
+                }}>{item.unit}</td>
+                <td style={{ 
+                  border: '1px solid #000',
+                  padding: '8px',
+                  textAlign: 'center'
+                }}>{item.quantity_requested}</td>
+                <td style={{ 
+                  border: '1px solid #000',
+                  padding: '8px',
+                  textAlign: 'center'
+                }}>{item.remarks || '-'}</td>
+              </tr>
+            ))}
+            {[...Array(Math.max(0, 10 - (requisition.items?.length || 0)))].map((_, index) => (
+              <tr key={`empty-${index}`}>
+                <td style={{ border: '1px solid #000', height: '40px' }}> </td>
+                <td style={{ border: '1px solid #000' }}> </td>
+                <td style={{ border: '1px solid #000' }}> </td>
+                <td style={{ border: '1px solid #000' }}> </td>
+                <td style={{ border: '1px solid #000' }}> </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={{ 
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: '40px'
+        }}>
+          <div style={{ width: '60%' }}>
+            <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>Transport Details:</p>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Through:</strong> {requisition.transporter_name || ''}
+            </
+
+p>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Vehicle No:</strong> {requisition.vehicle_num || ''}
+            </p>
+            <p style={{ margin: '5px 0' }}>
+              <strong>L/R No:</strong> {requisition.lr_no || ''}
+            </p>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Date:</strong> {date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}
+            </p>
+          </div>
+          <div style={{ width: '35%' }}>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Received:</strong> 
+            </p>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Date:</strong> {requisition.receive_date ? new Date(requisition.receive_date).toLocaleDateString() : ''}
+            </p>
+            <div style={{ 
+              marginTop: '30px',
+              textAlign: 'center',
+              paddingTop: '5px'
+            }}>
+              <p style={{ margin: '5px 0', fontWeight: 'bold' }}>Authorized By</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -93,22 +324,9 @@ const AdminDashboard = () => {
     hasMore: true,
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
   const observer = useRef();
   const containerRef = useRef();
-
-  const lastRequisitionRef = useCallback(
-    (node) => {
-      if (loading || loadingMore) return;
-      if (observer.current) observer.current.disconnect();
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && filter.hasMore) {
-          setFilter((prev) => ({ ...prev, page: prev.page + 1 }));
-        }
-      });
-      if (node) observer.current.observe(node);
-    },
-    [loading, loadingMore, filter.hasMore]
-  );
 
   const fetchRequisitions = async (reset = false) => {
     try {
@@ -139,6 +357,282 @@ const AdminDashboard = () => {
     }
   };
 
+  const handlePrint = async () => {
+    if (!selectedRequisition) {
+      setSnackbar({
+        open: true,
+        message: 'No requisition selected for printing',
+        severity: 'error',
+      });
+      return;
+    }
+
+    try {
+      selectedRequisition.challan_date =  
+      // Update requisition status to 'higherauthapprove'
+      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/state`, {
+        status: 'higherauthapprove',
+        details: selectedRequisition
+      });
+      
+
+      // Refresh requisitions list to reflect status change
+      await fetchRequisitions(true);
+
+      // Proceed with printing
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        setSnackbar({
+          open: true,
+          message: 'Failed to open print window. Please allow pop-ups.',
+          severity: 'error',
+        });
+        return;
+      }
+
+      const printContent = `
+        <html>
+          <head>
+            <title>Print Challan - ${selectedRequisition.pr_num}</title>
+            <style>
+              @page { 
+                size: A4; 
+                margin: 10mm;
+              }
+              @media print {
+                body { 
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                  margin: 0;
+                  padding: 0;
+                  font-family: Arial, sans-serif;
+                  font-size: 14px;
+                  color: #000;
+                  background: #fff;
+                }
+                img {
+                  max-width: 100px;
+                  height: auto;
+                }
+                table {
+                  border-collapse: collapse;
+                  width: 100%;
+                }
+                th, td {
+                  border: 1px solid #000;
+                  padding: 8px;
+                }
+                th {
+                  background-color: #f5f5f5;
+                  font-weight: bold;
+                  text-align: center;
+                }
+              }
+              body {
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                color: #000;
+                background: #fff;
+                margin: 0;
+                padding: 0;
+              }
+              .challan-container {
+                width: 210mm;
+                margin: 0 auto;
+                min-height: 297mm;
+                padding: 20mm;
+                box-sizing: 'border-box';
+              }
+              .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 30px;
+              }
+              .header .company-info {
+                text-align: center;
+              }
+              .header h1 {
+                margin: 0;
+                font-size: 20px;
+                font-weight: bold;
+              }
+              .header h2 {
+                margin: 5px 0 0 0;
+                font-size: 17px;
+                color: ${colors.primary};
+              }
+              .header p {
+                margin: 5px 0 0 0;
+              }
+              .title {
+                text-align: center;
+                margin: 20px 0 30px 0;
+                font-size: 22px;
+                font-weight: bold;
+                text-decoration: underline;
+              }
+              .details {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 30px;
+              }
+              .details-left {
+                width: 60%;
+              }
+              .details-right {
+                text-align: right;
+              }
+              .details p {
+                margin: 5px 0;
+              }
+              .table-container {
+                margin-bottom: 30px;
+              }
+              .footer {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 40px;
+              }
+              .footer-left {
+                width: 60%;
+              }
+              .footer-right {
+                width: 35%;
+              }
+              .footer-right .signature {
+                margin-top: 30px;
+                text-align: center;
+                border-top: 1px solid #000;
+                padding-top: 5px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="challan-container">
+              <div class="header">
+                <img src="${MSLLogo}" alt="MSL Logo" style="width: 80px; height: auto; object-fit: contain;" />
+                <div class="company-info">
+                  <h1>MAHARASHTRA SEAMLESS LIMITED</h1>
+                  <h2>D.P. JINDAL GROUP OF INDUSTRIES</h2>
+                  <p>Sreepuram, Narketpally, Nalgonda-508254, Telangana</p>
+                </div>
+                <img src="${UnitedLogo}" alt="United Logo" style="width: 100px; height: auto; object-fit: contain;" />
+              </div>
+
+              <h1 class="title">
+                ${selectedRequisition.document_type === 'RGP' ? 'Returnable Gate Pass' : 'Non-Returnable Gate Pass'}
+              </h1>
+
+              <div class="details">
+                <div class="details-left">
+                  <p style="font-weight: bold; margin-bottom: 5px;">To:</p>
+                  <p style="margin: 5px 0; min-height: 20px;">${selectedRequisition.supplier_name || ''}</p>
+                  <p style="margin: 5px 0; min-height: 20px;">${selectedRequisition.supplier_address || ''}</p>
+                </div>
+                <div class="details-right">
+                  <p><strong>Gatepass No:</strong> ${selectedRequisition.gate_pass_no || ''}</p>
+                  <p><strong>Date:</strong> ${selectedRequisition.requisition_date ? new Date(selectedRequisition.requisition_date).toLocaleDateString() : ''}</p>
+                </div>
+              </div>
+
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>St. No</th>
+                      <th>Particulars</th>
+                      <th>Unit</th>
+                      <th>Qty</th>
+                      <th>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${selectedRequisition.items?.map((item, index) => `
+                      <tr>
+                        <td style="text-align: center;">${index + 1}</td>
+                        <td>${item.material_description}</td>
+                        <td style="text-align: center;">${item.unit}</td>
+                        <td style="text-align: center;">${item.quantity_requested}</td>
+                        <td style="text-align: center;">${item.remarks || '-'}</td>
+                      </tr>
+                    `).join('')}
+                    ${[...Array(Math.max(0, 10 - (selectedRequisition.items?.length || 0)))].map((_, index) => `
+                      <tr>
+                        <td style="height: 40px;"> </td>
+                        <td> </td>
+                        <td> </td>
+                        <td> </td>
+                        <td> </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="footer">
+                <div class="footer-left">
+                  <p style="font-weight: bold; margin-bottom: 5px;">Transport Details:</p>
+                  <p><strong>Through:</strong> ${selectedRequisition.transporter_name || ''}</p>
+                  <p><strong>Vehicle No:</strong> ${selectedRequisition.vehicle_num || ''}</p>
+                  <p><strong>L/R No:</strong> ${selectedRequisition.lr_no || ''}</p>
+                  <p><strong>Date:</strong> ${date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}</p>
+                </div>
+                <div class="footer-right">
+                  <p><strong>Received:</strong></p>
+                  <p><strong>Date:</strong> ${selectedRequisition.receive_date ? new Date(selectedRequisition.receive_date).toLocaleDateString() : ''}</p>
+                  <div class="signature">
+                    <p style="font-weight: bold;">Authorized By</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <script>
+              window.onbeforeprint = () => console.log('Printing started');
+              window.onafterprint = () => {
+                console.log('Printing completed');
+                window.close();
+              };
+              window.onload = () => {
+                window.print();
+              };
+            </script>
+          </body>
+        </html>
+      `;
+
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+
+      setSnackbar({
+        open: true,
+        message: `Requisition ${selectedRequisition.pr_num} approved and print window opened`,
+        severity: 'success',
+      });
+    } catch (err) {
+      console.error('Error during print action:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.error || 'Failed to process print request',
+        severity: 'error',
+      });
+    }
+  };
+
+  const lastRequisitionRef = useCallback(
+    (node) => {
+      if (loading || loadingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && filter.hasMore) {
+          setFilter((prev) => ({ ...prev, page: prev.page + 1 }));
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loading, loadingMore, filter.hasMore]
+  );
+
   useEffect(() => {
     fetchRequisitions(true);
   }, [activeTab, filter.dateRange, searchTerm]);
@@ -151,6 +645,7 @@ const AdminDashboard = () => {
 
   const handleOpenDialog = (requisition) => {
     setSelectedRequisition(requisition);
+    console.log('Selected Requisition:', requisition);
     setOpenDialog(true);
   };
 
@@ -161,13 +656,19 @@ const AdminDashboard = () => {
 
   const handleHigherApproval = async (status) => {
     try {
-      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/higher-approval`, { status });
+      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, {
+        status,
+        gatePassNo: selectedRequisition.gate_pass_no || '',
+        documentType: selectedRequisition.document_type || 'RGP',
+        fiscalYear: selectedRequisition.fiscal_year || new Date().getFullYear(),
+        issuedBy: selectedRequisition.issued_by || '',
+      });
       setSnackbar({
         open: true,
         message: `Requisition ${selectedRequisition.pr_num} ${status === 'higherauthapprove' ? 'approved' : status === 'rejected' ? 'rejected' : 'completed'} successfully!`,
         severity: 'success',
       });
-      setRequisitions((prev) => prev.filter((req) => req.id !== selectedRequisition.id));
+      await fetchRequisitions(true);
       handleCloseDialog();
     } catch (err) {
       console.error('Error updating higher approval:', err);
@@ -202,8 +703,6 @@ const AdminDashboard = () => {
         return 'default';
     }
   };
-
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const drawer = (
     <Box sx={{ backgroundColor: colors.dark, color: colors.text, height: '100%', p: 2 }}>
@@ -417,7 +916,7 @@ const AdminDashboard = () => {
                     <Typography variant="body2" sx={{ mb: 2, color: colors.secondary }}>
                       Date: {new Date(requisition.requisition_date).toLocaleDateString()}
                     </Typography>
-                    <Divider sx={{ my: 1 }} />
+                    <Divider sx={{ mb: 1 }} />
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                         Items ({requisition.items?.length || 0}):
@@ -459,8 +958,29 @@ const AdminDashboard = () => {
             <CircularProgress />
           </Box>
         )}
-        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '800px' } }}>
-          <DialogTitle sx={{ backgroundColor: colors.light, borderBottom: `1px solid ${colors.secondary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
+        <Dialog 
+          open={openDialog} 
+          onClose={handleCloseDialog} 
+          maxWidth="xl"
+          fullWidth
+          disableAutoFocus={false}
+          disableEnforceFocus={false}
+          sx={{
+            '& .MuiDialog-paper': {
+              width: '90%',
+              maxWidth: '1200px',
+              height: '90vh'
+            }
+          }}
+        >
+          <DialogTitle sx={{ 
+            backgroundColor: colors.light, 
+            borderBottom: `1px solid ${colors.secondary}`, 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            p: 2 
+          }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
               Requisition Details - {selectedRequisition?.pr_num}
             </Typography>
@@ -468,335 +988,68 @@ const AdminDashboard = () => {
               <Cancel />
             </IconButton>
           </DialogTitle>
-          <DialogContent sx={{ p: 0 }}>
-            <Box sx={{ p: 3 }}>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, mb: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center' }}>
-                      <ConfirmationNumber sx={{ mr: 1 }} /> Header Information
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Gate Pass Number"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.gate_pass_no || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Assignment sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Document Type"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.document_type || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Fiscal Year"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.fiscal_year || ''}
-                          disabled
-                          InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Issued By"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.issued_by || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Authorized By"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.authorized_by || ''}
-                          disabled
-                          InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Buyer Name"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.buyer_name || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Approval Authority"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.approval_authority || ''}
-                          disabled
-                          InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Requested By"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.requisitioned_by || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Department"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.department_code || 'N/A'}
-                          disabled
-                          InputProps={{ startAdornment: <Business sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, mb: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center' }}>
-                      <Business sx={{ mr: 1 }} /> Supplier Information
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Supplier Name"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.supplier_name || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Business sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Supplier GSTIN"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.supplier_gstin || ''}
-                          disabled
-                          InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Supplier Contact"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.supplier_contact || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          label="Supplier Address"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.supplier_address || ''}
-                          disabled
-                          multiline
-                          rows={2}
-                          InputProps={{ startAdornment: <Note sx={{ color: colors.secondary, mr: 1, alignSelf: 'flex-start' }} /> }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, mb: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center' }}>
-                      <LocalShipping sx={{ mr: 1 }} /> Transport Information
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Transporter Name"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.transporter_name || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Business sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Transporter GSTIN"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.transporter_gstin || ''}
-                          disabled
-                          InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <TextField
-                          label="Vehicle Number"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.vehicle_num || ''}
-                          disabled
-                          InputProps={{ startAdornment: <LocalShipping sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="E-Way Bill No"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.ewaybill_no || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="U No"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.u_no || ''}
-                          disabled
-                          InputProps={{ startAdornment: <ConfirmationNumber sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, mb: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center' }}>
-                      <Description sx={{ mr: 1 }} /> Line Items
-                    </Typography>
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>S.No</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Quantity</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Unit</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Approx. Cost</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedRequisition?.items?.map((item, index) => (
-                            <TableRow key={index}>
-                              <TableCell>{index + 1}</TableCell>
-                              <TableCell>{item.material_description}</TableCell>
-                              <TableCell>{item.quantity_requested}</TableCell>
-                              <TableCell>{item.unit}</TableCell>
-                              <TableCell>{item.approx_cost || 'N/A'}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, display_access: 'flex', alignItems: 'center' }}>
-                      <Note sx={{ mr: 1 }} /> Additional Information
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Physical Challan Number"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.physical_challan_num || ''}
-                          disabled
-                          InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Challan Date"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.challan_date || ''}
-                          disabled
-                          InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Transaction Date"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.transaction_date || ''}
-                          disabled
-                          InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          label="Remarks"
-                          fullWidth
-                          size="small"
-                          value={selectedRequisition?.details_remarks || ''}
-                          disabled
-                          multiline
-                          rows={2}
-                          InputProps={{ startAdornment: <Note sx={{ color: colors.secondary, mr: 1, alignSelf: 'flex-start' }} /> }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-              </Grid>
-            </Box>
+          <DialogContent sx={{ 
+            p: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {selectedRequisition ? (
+              <Box sx={{
+                overflowY: 'auto',
+                flex: 1,
+                p: 2
+              }}>
+                <NonReturnableChallan requisition={selectedRequisition} />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            )}
           </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: `1px solid ${colors.light}` }}>
+          <DialogActions sx={{ 
+            p: 2, 
+            borderTop: `1px solid ${colors.light}`,
+            justifyContent: 'space-between'
+          }}>
             <Button
               variant="outlined"
               onClick={handleCloseDialog}
-              sx={{ borderColor: colors.secondary, color: colors.secondary }}
+              sx={{ 
+                borderColor: colors.secondary, 
+                color: colors.secondary,
+                minWidth: '120px'
+              }}
             >
               Cancel
             </Button>
             {selectedRequisition?.status === 'storeapprove' && (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={() => handleHigherApproval('higherauthapprove')}
-                  sx={{ backgroundColor: colors.success, '&:hover': { backgroundColor: '#4a9b4a' }, mr: 1 }}
-                >
-                  Approve
-                </Button>
+              <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
                   variant="contained"
                   onClick={() => handleHigherApproval('rejected')}
-                  sx={{ backgroundColor: colors.danger, '&:hover': { backgroundColor: '#c9302c' }, mr: 1 }}
+                  sx={{ 
+                    backgroundColor: colors.danger, 
+                    '&:hover': { backgroundColor: '#c9302c' },
+                    minWidth: '120px'
+                  }}
                 >
                   Reject
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={() => handleHigherApproval('completed')}
-                  sx={{ backgroundColor: colors.primary, '&:hover': { backgroundColor: '#085c9e' } }}
+                  startIcon={<PrintIcon />}
+                  onClick={handlePrint}
+                  sx={{ 
+                    backgroundColor: colors.primary, 
+                    '&:hover': { backgroundColor: '#085c9e' },
+                    minWidth: '150px'
+                  }}
                 >
-                  Complete
+                  Print Challan
                 </Button>
-              </>
+              </Box>
             )}
           </DialogActions>
         </Dialog>

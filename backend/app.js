@@ -49,9 +49,9 @@ const SAP_CONFIG1 = {
   TIMEOUT: 30000,
 };
 
+// ==================== REQUISITION ENDPOINTS ====================
 
-// Assuming 'pool' is your MySQL connection pool defined in app.js
-app.get('/requisitionsdet', async (req, res) => {
+app.get('/api/requisitions', async (req, res) => {
   try {
     const { status, dateRange, search, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
@@ -81,15 +81,16 @@ app.get('/requisitionsdet', async (req, res) => {
     const [requisitions] = await pool.query(`
       SELECT 
         r.id, r.pr_num, r.department_id, r.department_code, r.requisitioned_by, 
-        r.requisition_date, r.status,
+        r.requisition_date, r.status, r.remarks,
         d.gate_pass_no, d.document_type, d.fiscal_year, d.issued_by, d.authorized_by, 
         d.remarks AS details_remarks, d.transporter_name, d.transporter_gstin, 
         d.ewaybill_no, d.u_no, d.physical_challan_num, d.challan_date, 
-        d.transaction_date, d.buyer_name, d.approval_authority, d.supplier_id, 
-        d.supplier_name, d.supplier_address, d.supplier_gstin, d.supplier_contact
+        d.transaction_date, d.buyer_name, d.approval_authority, d.vehicle_num,
+        d.supplier_id, d.supplier_name, d.supplier_address, d.supplier_gstin, d.supplier_contact
       FROM requisitions_1 r
       LEFT JOIN requisition_details d ON r.id = d.requisition_id
       ${whereClause}
+      ORDER BY r.requisition_date DESC
       LIMIT ? OFFSET ?
     `, [...params, parseInt(limit), offset]);
 
@@ -100,7 +101,7 @@ app.get('/requisitionsdet', async (req, res) => {
         SELECT 
           requisition_id, pr_itm_num, item_code, quantity_requested, unit, 
           approx_cost, material_description
-        FROM requisition_items_1
+        FROM requistion_items_1
         WHERE requisition_id IN (?)
       `, [requisitionIds]);
 
@@ -114,18 +115,160 @@ app.get('/requisitionsdet', async (req, res) => {
       // Attach items to their respective requisitions
       requisitions.forEach(req => {
         req.items = itemsByRequisition[req.id] || [];
+        // Combine gate pass data into a single object
+        req.gatePassData = {
+          gatePassNo: req.gate_pass_no,
+          documentType: req.document_type,
+          fiscalYear: req.fiscal_year,
+          issuedBy: req.issued_by,
+          authorizedBy: req.authorized_by,
+          remarks: req.details_remarks,
+          transporterName: req.transporter_name,
+          transporterGSTIN: req.transporter_gstin,
+          ewaybillNo: req.ewaybill_no,
+          uNo: req.u_no,
+          physicalChallanNum: req.physical_challan_num,
+          challanDate: req.challan_date,
+          transactionDate: req.transaction_date,
+          buyerName: req.buyer_name,
+          approvalAuthority: req.approval_authority,
+          vehicleNum: req.vehicle_num,
+          supplierId: req.supplier_id,
+          supplierName: req.supplier_name,
+          supplierAddress: req.supplier_address,
+          supplierGSTIN: req.supplier_gstin,
+          supplierContact: req.supplier_contact
+        };
       });
     }
 
     res.json(requisitions);
   } catch (error) {
-    console.error('Error fetching requisitions details:', error);
-    res.status(500).json({ error: 'Error fetching requisitions details' });
+    console.error('Error fetching requisitions:', error);
+    res.status(500).json({ 
+      error: 'Error fetching requisitions',
+      details: error.message 
+    });
   }
 });
 
+app.put('/api/requisitions/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, ...gatePassData } = req.body;
 
-// Fetch supplier data from SAP
+    // Validate status
+    if (!['pending', 'storeapprove', 'higherauthapprove', 'rejected', 'completed'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Invalid status value' });
+    }
+
+    await pool.query('START TRANSACTION');
+
+    // Check if requisition exists
+    const [requisition] = await pool.query('SELECT id FROM requisitions_1 WHERE id = ?', [id]);
+    if (requisition.length === 0) {
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Requisition not found' });
+    }
+
+    // Update requisition status
+    await pool.query('UPDATE requisitions_1 SET status = ? WHERE id = ?', [status, id]);
+
+    // Insert or update gate pass details
+    const [existingDetails] = await pool.query(
+      'SELECT id FROM requisition_details WHERE requisition_id = ?', 
+      [id]
+    );
+
+    if (existingDetails.length > 0) {
+      await pool.query(
+        `UPDATE requisition_details SET
+          gate_pass_no = ?, document_type = ?, fiscal_year = ?, issued_by = ?,
+          authorized_by = ?, remarks = ?, transporter_name = ?, transporter_gstin = ?,
+          ewaybill_no = ?, u_no = ?, physical_challan_num = ?, challan_date = ?,
+          transaction_date = ?, buyer_name = ?, approval_authority = ?, vehicle_num = ?,
+          supplier_id = ?, supplier_name = ?, supplier_address = ?, supplier_gstin = ?,
+          supplier_contact = ?
+         WHERE requisition_id = ?`,
+        [
+          gatePassData.gatePassNo,
+          gatePassData.documentType,
+          gatePassData.fiscalYear,
+          gatePassData.issuedBy,
+          gatePassData.authorizedBy,
+          gatePassData.remarks,
+          gatePassData.transporterName,
+          gatePassData.transporterGSTIN,
+          gatePassData.ewaybillNo,
+          gatePassData.uNo,
+          gatePassData.physicalChallanNum,
+          gatePassData.challanDate,
+          gatePassData.transactionDate,
+          gatePassData.buyerName,
+          gatePassData.approvalAuthority,
+          gatePassData.vehicleNum,
+          gatePassData.supplierId,
+          gatePassData.supplierName,
+          gatePassData.supplierAddress,
+          gatePassData.supplierGSTIN,
+          gatePassData.supplierContact,
+          id
+        ]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO requisition_details (
+          requisition_id, gate_pass_no, document_type, fiscal_year, issued_by,
+          authorized_by, remarks, transporter_name, transporter_gstin,
+          ewaybill_no, u_no, physical_challan_num, challan_date,
+          transaction_date, buyer_name, approval_authority, vehicle_num,
+          supplier_id, supplier_name, supplier_address, supplier_gstin, supplier_contact
+        ) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          gatePassData.gatePassNo,
+          gatePassData.documentType,
+          gatePassData.fiscalYear,
+          gatePassData.issuedBy,
+          gatePassData.authorizedBy,
+          gatePassData.remarks,
+          gatePassData.transporterName,
+          gatePassData.transporterGSTIN,
+          gatePassData.ewaybillNo,
+          gatePassData.uNo,
+          gatePassData.physicalChallanNum,
+          gatePassData.challanDate,
+          gatePassData.transactionDate,
+          gatePassData.buyerName,
+          gatePassData.approvalAuthority,
+          gatePassData.vehicleNum,
+          gatePassData.supplierId,
+          gatePassData.supplierName,
+          gatePassData.supplierAddress,
+          gatePassData.supplierGSTIN,
+          gatePassData.supplierContact
+        ]
+      );
+    }
+
+    await pool.query('COMMIT');
+    res.json({ 
+      success: true, 
+      message: 'Requisition status and gate pass details updated successfully' 
+    });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error('Update requisition error:', err.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update requisition',
+      details: err.message,
+    });
+  }
+});
+
+// ==================== SUPPLIER ENDPOINTS ====================
+
 app.get('/api/sap/suppliers', async (req, res) => {
   console.log('Initiating SAP Supplier data fetch...');
   try {
@@ -172,6 +315,7 @@ app.get('/api/sap/suppliers', async (req, res) => {
       name: supplier.SupplierName,
       address: supplier.BPAddrStreetName,
       gstin: supplier.TaxNumber3 || '',
+      contact: supplier.PhoneNumber || ''
     }));
 
     const searchTerm = req.query.search;
@@ -625,22 +769,14 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, ...details } = req.body;
+    console.log(details);
 
     // Validate status
     if (!['pending', 'storeapprove', 'higherauthapprove', 'rejected', 'completed'].includes(status)) {
       return res.status(400).json({ success: false, error: 'Invalid status value' });
     }
 
-    // Validate required fields
-    const requiredFields = ['gatePassNo', 'documentType', 'fiscalYear', 'issuedBy'];
-    const missingFields = requiredFields.filter((field) => !details[field]);
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Missing required fields: ${missingFields.join(', ')}`,
-      });
-    }
-
+ 
     await pool.query('START TRANSACTION');
 
     // Check if requisition exists
@@ -665,7 +801,7 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
       document_type: details.documentType || 'RGP',
       fiscal_year: details.fiscalYear || new Date().getFullYear(),
       issued_by: details.issuedBy || '',
-      authorized_by: details.authorizedBy || '',
+      authorized_by: details.authorizedBy|| '',
       remarks: details.remarks || '',
       transporter_name: details.transporterName || '',
       transporter_gstin: details.transporterGSTIN || '',
@@ -681,6 +817,7 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
       supplier_address: details.supplierAddress || '',
       supplier_gstin: details.supplierGSTIN || '',
       supplier_contact: details.supplierContact || '',
+      vehicle_num: details.vehicleNum
     };
 
     if (existingDetails.length > 0) {
@@ -724,8 +861,8 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
           authorized_by, remarks, transporter_name, transporter_gstin, 
           ewaybill_no, u_no, physical_challan_num, challan_date, 
           transaction_date, buyer_name, approval_authority, 
-          supplier_id, supplier_name, supplier_address, supplier_gstin, supplier_contact
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          supplier_id, supplier_name, supplier_address, supplier_gstin, supplier_contact,vehicle_num
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
         [
           id,
           detailsData.gate_pass_no,
@@ -748,6 +885,148 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
           detailsData.supplier_address,
           detailsData.supplier_gstin,
           detailsData.supplier_contact,
+          detailsData.vehicle_num
+
+        ]
+      );
+    }
+
+    await pool.query('COMMIT');
+    res.json({ success: true, message: 'Requisition updated successfully' });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error('Update requisition error:', err.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update requisition',
+      details: err.message,
+    });
+  }
+});
+
+app.put('/api/requisitions/:id/state', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, ...details } = req.body;
+    gatepassData = details.details;
+    console.log(gatepassData);
+
+    // Validate status
+    if (!['pending', 'storeapprove', 'higherauthapprove', 'rejected', 'completed'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Invalid status value' });
+    }
+
+ 
+    await pool.query('START TRANSACTION');
+
+    // Check if requisition exists
+    const [requisition] = await pool.query('SELECT id FROM requisitions_1 WHERE id = ?', [id]);
+    if (requisition.length === 0) {
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Requisition not found' });
+    }
+
+    // Update requisition status
+    await pool.query('UPDATE requisitions_1 SET status = ? WHERE id = ?', [status, id]);
+
+    // Check if requisition_details exists
+    const [existingDetails] = await pool.query(
+      'SELECT * FROM requisition_details WHERE requisition_id = ?',
+      [id]
+    );
+
+    // Prepare details with default values for optional fields
+    const detailsData = {
+      gate_pass_no: gatepassData.gate_pass_no || '',
+      document_type: gatepassData.document_type || 'RGP',
+      fiscal_year: gatepassData.fiscal_year || new Date().getFullYear(),
+      issued_by: gatepassData.issued_by || '',
+      authorized_by: gatepassData.authorized_by|| '',
+      remarks: gatepassData.details_remarks || '',
+      transporter_name: gatepassData.transporter_name || '',
+      transporter_gstin: gatepassData.transporter_gstin || '',
+      ewaybill_no: gatepassData.ewaybill_no || '',
+      u_no: gatepassData.u_no || '',
+      physical_challan_num: gatepassData.physical_challan_num || '',
+      challan_date: gatepassData.challan_date?new Date(gatepassData.challan_date).toLocaleDateString('en-GB') : null,
+      transaction_date: gatepassData.transaction_date ?new Date(gatepassData.transaction_date).toLocaleDateString('en-GB') : null,
+      buyer_name: gatepassData.buyer_name || '',
+      approval_authority: gatepassData.approval_authority || '',
+      supplier_id: gatepassData.supplier_id || '',
+      supplier_name: gatepassData.supplier_name || '',
+      supplier_address: gatepassData.supplier_address || '',
+      supplier_gstin: gatepassData.supplier_gstin || '',
+      supplier_contact: gatepassData.supplier_contact || '',
+      vehicle_num: gatepassData.vehicle_num
+    };
+
+    if (existingDetails.length > 0) {
+      await pool.query(
+        `UPDATE requisition_details SET 
+         gate_pass_no = ?, document_type = ?, fiscal_year = ?, issued_by = ?, 
+         authorized_by = ?, remarks = ?, transporter_name = ?, transporter_gstin = ?, 
+         ewaybill_no = ?, u_no = ?, physical_challan_num = ?, challan_date = ?, 
+         transaction_date = ?, buyer_name = ?, approval_authority = ?, 
+         supplier_id = ?, supplier_name = ?, supplier_address = ?, 
+         supplier_gstin = ?, supplier_contact = ?
+         WHERE requisition_id = ?`,
+        [
+          detailsData.gate_pass_no,
+          detailsData.document_type,
+          detailsData.fiscal_year,
+          detailsData.issued_by,
+          detailsData.authorized_by,
+          detailsData.remarks,
+          detailsData.transporter_name,
+          detailsData.transporter_gstin,
+          detailsData.ewaybill_no,
+          detailsData.u_no,
+          detailsData.physical_challan_num,
+          detailsData.challan_date,
+          detailsData.transaction_date,
+          detailsData.buyer_name,
+          detailsData.approval_authority,
+          detailsData.supplier_id,
+          detailsData.supplier_name,
+          detailsData.supplier_address,
+          detailsData.supplier_gstin,
+          detailsData.supplier_contact,
+          id,
+        ]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO requisition_details (
+          requisition_id, gate_pass_no, document_type, fiscal_year, issued_by, 
+          authorized_by, remarks, transporter_name, transporter_gstin, 
+          ewaybill_no, u_no, physical_challan_num, challan_date, 
+          transaction_date, buyer_name, approval_authority, 
+          supplier_id, supplier_name, supplier_address, supplier_gstin, supplier_contact,vehicle_num
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
+        [
+          id,
+          detailsData.gate_pass_no,
+          detailsData.document_type,
+          detailsData.fiscal_year,
+          detailsData.issued_by,
+          detailsData.authorized_by,
+          detailsData.remarks,
+          detailsData.transporter_name,
+          detailsData.transporter_gstin,
+          detailsData.ewaybill_no,
+          detailsData.u_no,
+          detailsData.physical_challan_num,
+          detailsData.challan_date,
+          detailsData.transaction_date,
+          detailsData.buyer_name,
+          detailsData.approval_authority,
+          detailsData.supplier_id,
+          detailsData.supplier_name,
+          detailsData.supplier_address,
+          detailsData.supplier_gstin,
+          detailsData.supplier_contact,
+          detailsData.vehicle_num
+
         ]
       );
     }
@@ -794,6 +1073,7 @@ app.get('/api/requisitions', async (req, res) => {
     if (!status) {
       return res.status(400).json({ error: 'Status parameter is required' });
     }
+    console
     const [requisitions] = await pool.query(
       `SELECT id, pr_num, department_id, department_code, requisitioned_by,
        requisition_date, status, remarks FROM requisitions_1 r
@@ -808,6 +1088,7 @@ app.get('/api/requisitions', async (req, res) => {
       req.items = items;
     }
     res.json(requisitions);
+   
   } catch (error) {
     console.error('Error fetching requisitions:', error);
     res.status(500).json({
@@ -900,7 +1181,8 @@ app.get('/api/requisitionsdet', async (req, res) => {
         d.remarks AS details_remarks, d.transporter_name, d.transporter_gstin, 
         d.ewaybill_no, d.u_no, d.physical_challan_num, d.challan_date, 
         d.transaction_date, d.buyer_name, d.approval_authority, d.supplier_id, 
-        d.supplier_name, d.supplier_address, d.supplier_gstin, d.supplier_contact
+        d.supplier_name, d.supplier_address, d.supplier_gstin, d.supplier_contact,
+        d.vehicle_num
       FROM requisitions_1 r
       LEFT JOIN requisition_details d ON r.id = d.requisition_id
       ${whereClause}
@@ -929,6 +1211,8 @@ app.get('/api/requisitionsdet', async (req, res) => {
       requisitions.forEach(req => {
         req.items = itemsByRequisition[req.id] || [];
       });
+      
+      
     }
 
     res.json(requisitions);

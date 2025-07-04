@@ -250,7 +250,7 @@ const Layout = () => {
             style={{ height: 24 }} 
           />
           <Typography variant="subtitle2" sx={{ ml: 1, fontWeight: 600 }}>
-            Requisition Portal
+            RGP/NRGP System
           </Typography>
         </Box>
           </Box>
