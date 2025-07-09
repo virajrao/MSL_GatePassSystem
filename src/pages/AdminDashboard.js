@@ -67,7 +67,7 @@ const colors = {
   warning: '#F0AD4E',
   danger: '#D9534F',
   light: '#F5F5F5',
-  dark: '#0A6ED1',
+  dark: '#1A252F',
   background: '#F7F7F7',
   text: '#FFFFFF',
 };
@@ -120,12 +120,13 @@ const NonReturnableChallan = ({ requisition }) => {
             </h1>
             <h2 style={{ 
               marginTop: '-18px',
-              fontSize: '17px',
-              color: colors.primary
+              fontSize: '17px'
             }}>
               D.P. JINDAL GROUP OF INDUSTRIES
             </h2>
-            <p style={{ margin: '5px 0 0 0' }}>
+            <p style={{ margin: '2px 0 0 0' 
+              ,marginTop: '-10px'
+            }}>
               Sreepuram, Narketpally, Nalgonda-508254, Telangana
             </p>
           </div>
@@ -290,7 +291,6 @@ p>
               <strong>Date:</strong> {requisition.receive_date ? new Date(requisition.receive_date).toLocaleDateString() : ''}
             </p>
             <div style={{ 
-              marginTop: '30px',
               textAlign: 'center',
               paddingTop: '5px'
             }}>
@@ -327,6 +327,43 @@ const AdminDashboard = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const observer = useRef();
   const containerRef = useRef();
+
+  const handleReject = async () => {
+  try {
+    if (!selectedRequisition || !selectedRequisition.id) {
+      setSnackbar({
+        open: true,
+        message: 'No requisition selected',
+        severity: 'error',
+      });
+      return;
+    }
+
+    const response = await axios.put('http://localhost:5000/api/AdminReject', {
+      requisitionId: selectedRequisition.id
+    });
+
+    console.log(response);
+
+    setSnackbar({
+      open: true,
+      message: `Requisition ${selectedRequisition.pr_num} rejected successfully`,
+      severity: 'success',
+    });
+
+    // Refresh the requisitions list
+    fetchRequisitions(true);
+    handleCloseDialog();
+  } catch (err) {
+    console.error('Error during the reject action:', err);
+    setSnackbar({
+      open: true,
+      message: err.response?.data?.error || 'Failed to reject the requisition',
+      severity: 'error',
+    });
+  }
+};
+
 
   const fetchRequisitions = async (reset = false) => {
     try {
@@ -460,7 +497,6 @@ const AdminDashboard = () => {
               .header h2 {
                 margin: 5px 0 0 0;
                 font-size: 17px;
-                color: ${colors.primary};
               }
               .header p {
                 margin: 5px 0 0 0;
@@ -503,7 +539,6 @@ const AdminDashboard = () => {
               .footer-right .signature {
                 margin-top: 30px;
                 text-align: center;
-                border-top: 1px solid #000;
                 padding-top: 5px;
               }
             </style>
@@ -655,6 +690,7 @@ const AdminDashboard = () => {
   };
 
   const handleHigherApproval = async (status) => {
+
     try {
       await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, {
         status,
@@ -1028,7 +1064,7 @@ const AdminDashboard = () => {
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
                   variant="contained"
-                  onClick={() => handleHigherApproval('rejected')}
+                  onClick={handleReject}
                   sx={{ 
                     backgroundColor: colors.danger, 
                     '&:hover': { backgroundColor: '#c9302c' },

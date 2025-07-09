@@ -1,414 +1,601 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  Drawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  AppBar,
-  Toolbar,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Snackbar,
-  Divider,
-  Chip,
-  InputAdornment
+  Box, TextField, Button, Typography, Alert, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Paper, Snackbar, Chip, Checkbox,
+  FormControl, InputLabel, Select, MenuItem, Divider, Tabs, Tab, CircularProgress
 } from '@mui/material';
-import {
-  Menu,
+import { 
+  Search as SearchIcon, 
+  CheckCircle, 
   LocalShipping,
-  Input,
-  CheckCircle,
-  Cancel,
-  Search as SearchIcon,
+  Inventory,
+  ExitToApp,
+  ArrowBack
 } from '@mui/icons-material';
 import axios from 'axios';
-
-const colors = {
-  primary: '#0A6ED1',
-  secondary: '#6A6D70',
-  success: '#5CB85C',
-  danger: '#D9534F',
-  light: '#F5F5F5',
-  dark: '#0A6ED1',
-  background: '#F7F7F7',
-  text: '#FFFFFF',
-};
-
-const drawerWidth = 240;
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const SecurityDashboard = () => {
-  const [gatePassNo, setGatePassNo] = useState('');
-  const [requisition, setRequisition] = useState(null);
-  const [error, setError] = useState(null);
+  const [gatePasses, setGatePasses] = useState([]);
+  const [materialOutForIn, setMaterialOutForIn] = useState([]);
+  const [materialIn, setMaterialIn] = useState([]);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('materialOut');
-  const [materialOutRequisitions, setMaterialOutRequisitions] = useState([]);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
+  const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [activeTab, setActiveTab] = useState('gatepasses');
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const fetchMaterialOutRequisitions = async () => {
+  // Parse URL query parameters
+  const queryParams = new URLSearchParams(location.search);
+  const urlTab = queryParams.get('tab') || 'gatepasses';
+  const urlGatePass = queryParams.get('gatePass');
+  const urlMovement = queryParams.get('movement');
+
+  // Fetch gate passes ready for material out (only RGP with status 'higherauthapprove')
+  const fetchGatePasses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/requisitions', {
-        params: { status: 'higherauthapprove' },
-  
+      const response = await axios.get('http://localhost:5000/api/gatepasses', {
+        params: { 
+          status: 'higherauthapprove',
+          documentType: 'RGP',
+          search: searchTerm 
+        }
       });
-      setMaterialOutRequisitions(response.data);
-      console.log(response.data);
+      setGatePasses(response.data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch material out requisitions');
+      setError(err.response?.data?.error || 'Failed to fetch gate passes');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerify = async () => {
-    if (!gatePassNo) {
-      setError('Please enter a gate pass number');
-      return;
-    }
+  // Fetch material out records for recording in
+  const fetchMaterialOutForIn = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const response = await axios.get(`http://localhost:5000/api/requisitions/verify/${gatePassNo}` );
-      if (response.data.status !== 'higherauthapprove') {
-        setError('Requisition is not approved by higher authority');
-        setRequisition(null);
-      } else {
-        setRequisition(response.data);
-      }
+      const response = await axios.get('http://localhost:5000/api/material-out-for-in', {
+        params: { search: searchTerm }
+      });
+      setMaterialOutForIn(response.data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to verify gate pass');
-      setRequisition(null);
+      setError(err.response?.data?.error || 'Failed to fetch material out records');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusUpdate = async (status) => {
+  // Fetch material in records
+  const fetchMaterialIn = async () => {
     try {
       setLoading(true);
-      await axios.put(
-        `http://localhost:5000/api/requisitions/${requisition.id}/status`,
-        { status },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
-      setSnackbar({
-        open: true,
-        message: `Requisition ${requisition.pr_num} ${status === 'securityapprove' ? 'approved for material out' : 'rejected'} successfully`,
-        severity: 'success',
+      const response = await axios.get('http://localhost:5000/api/material-in', {
+        params: { search: searchTerm }
       });
-      setRequisition(null);
-      setGatePassNo('');
-      if (status === 'securityapprove') {
-        fetchMaterialOutRequisitions();
-      }
+      setMaterialIn(response.data);
     } catch (err) {
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.error || 'Failed to update requisition status',
-        severity: 'error',
-      });
+      setError(err.response?.data?.error || 'Failed to fetch material in records');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
-
-  const handleDrawerToggle = () => {
-    setMobileOpen((prev) => !prev);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'securityapprove':
-        return 'success';
-      case 'securityreject':
-        return 'error';
-      default:
-        return 'default';
+  // Fetch gate pass details
+  const fetchGatePassDetails = async (gatePassNo) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`http://localhost:5000/api/gatepasses/${gatePassNo}`, {
+        params: { checkOut: true }
+      });
+      setSelectedRecord(response.data);
+      navigate(`?tab=${activeTab}&gatePass=${gatePassNo}`, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to fetch gate pass details');
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'materialOut') {
-      fetchMaterialOutRequisitions();
-    }
-  }, [activeTab]);
-
-  const drawer = (
-    <Box sx={{ backgroundColor: colors.dark, color: colors.text, height: '100%', p: 2 }}>
+  // Fetch material out details for recording in
+  const fetchMaterialOutDetails = async (movementId) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`http://localhost:5000/api/material-out-for-in/${movementId}`);
       
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
-      <List>
-        <ListItem disablePadding>
-          <ListItemButton
-            selected={activeTab === 'materialOut'}
-            onClick={() => setActiveTab('materialOut')}
-            sx={{ borderRadius: 1, '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.1)' },
-          marginTop: '60px' }}
+      // Initialize all items as pending
+      const movement = {
+        ...response.data,
+        items: response.data.items.map(item => ({
+          ...item,
+          status: item.status === 'received' ? 'received' : 'pending'
+        }))
+      };
+      
+      setSelectedRecord(movement);
+      navigate(`?tab=${activeTab}&movement=${movementId}`, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to fetch movement details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch material in details
+  const fetchMaterialInDetails = async (movementId) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`http://localhost:5000/api/material-in/${movementId}`);
+      setSelectedRecord(response.data);
+      navigate(`?tab=${activeTab}&movement=${movementId}`, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to fetch material in details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle back to list view
+  const handleBackToList = () => {
+    setSelectedRecord(null);
+    navigate(`?tab=${activeTab}`, { replace: true });
+  };
+
+  // Handle tab change
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    setSelectedRecord(null);
+    navigate(`?tab=${newTab}`, { replace: true });
+  };
+
+  // Handle material out
+  const handleMaterialOut = async () => {
+    try {
+      setLoading(true);
+      await axios.post('http://localhost:5000/api/material-movements', {
+        gate_pass_no: selectedRecord.gate_pass_no,
+        movement_type: 'out',
+        items: selectedRecord.items.map(item => ({
+          requisition_item_id: item.id,
+          quantity: item.quantity_requested
+        }))
+      });
+
+      setSnackbar({
+        open: true,
+        message: `Material out recorded for Gate Pass ${selectedRecord.gate_pass_no}`,
+        severity: 'success'
+      });
+      handleBackToList();
+      fetchGatePasses();
+      fetchMaterialOutForIn();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.error || 'Failed to record material out',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle material in
+  const handleMaterialIn = async () => {
+    try {
+      setLoading(true);
+      
+      const response = await axios.post('http://localhost:5000/api/material-in', {
+        gate_pass_no: selectedRecord.gate_pass_no,
+        movement_out_id: selectedRecord.id,
+        items: selectedRecord.items.map(item => ({
+          requisition_item_id: item.requisition_item_id,
+          quantity: item.quantity,
+          status: item.status
+        }))
+      });
+
+      const allReceived = selectedRecord.items.every(item => item.status === 'received');
+      
+      setSnackbar({
+        open: true,
+        message: `Material in recorded (${allReceived ? 'Complete' : 'Partial'}) for Gate Pass ${selectedRecord.gate_pass_no}`,
+        severity: 'success'
+      });
+      
+      handleBackToList();
+      fetchMaterialOutForIn();
+      fetchMaterialIn();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.error || 'Failed to record material in',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize state from URL
+  useEffect(() => {
+    setActiveTab(urlTab);
+    if (urlGatePass) {
+      fetchGatePassDetails(urlGatePass);
+    } else if (urlMovement) {
+      if (urlTab === 'out') {
+        fetchMaterialOutDetails(urlMovement);
+      } else if (urlTab === 'in') {
+        fetchMaterialInDetails(urlMovement);
+      }
+    }
+  }, []);
+
+  // Handle browser navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const queryParams = new URLSearchParams(window.location.search);
+      const newTab = queryParams.get('tab') || 'gatepasses';
+      const newGatePass = queryParams.get('gatePass');
+      const newMovement = queryParams.get('movement');
+      
+      setActiveTab(newTab);
+      if (newGatePass) {
+        fetchGatePassDetails(newGatePass);
+      } else if (newMovement) {
+        if (newTab === 'out') {
+          fetchMaterialOutDetails(newMovement);
+        } else if (newTab === 'in') {
+          fetchMaterialInDetails(newMovement);
+        }
+      } else {
+        setSelectedRecord(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Fetch data when tab or search term changes
+  useEffect(() => {
+    if (activeTab === 'gatepasses') {
+      fetchGatePasses();
+    } else if (activeTab === 'out') {
+      fetchMaterialOutForIn();
+    } else if (activeTab === 'in') {
+      fetchMaterialIn();
+    }
+  }, [activeTab, searchTerm]);
+
+  // Render item rows based on active tab
+  const renderItemRows = () => {
+    if (!selectedRecord?.items) return null;
+    
+    return selectedRecord.items.map((item, index) => (
+      <TableRow key={index}>
+        {activeTab === 'out' && (
+          <TableCell>
+            <Checkbox
+              checked={item.status === 'received'}
+              onChange={(e) => {
+                const updatedItems = [...selectedRecord.items];
+                updatedItems[index].status = e.target.checked ? 'received' : 'pending';
+                setSelectedRecord({...selectedRecord, items: updatedItems});
+              }}
+              color="primary"
+              disabled={item.status === 'received'}
+            />
+          </TableCell>
+        )}
+        <TableCell>{item.item_code}</TableCell>
+        <TableCell>{item.material_description}</TableCell>
+        <TableCell>{item.quantity_requested || item.quantity}</TableCell>
+        <TableCell>{item.unit}</TableCell>
+        {(activeTab === 'gatepasses' || activeTab === 'in') && (
+          <TableCell>
+            <Chip 
+              label={item.status || (item.out_recorded ? 'Recorded' : 'Pending')} 
+              color={
+                item.status === 'received' || item.out_recorded ? 'success' : 
+                item.status === 'pending' ? 'warning' : 'default'
+              } 
+              size="small" 
+            />
+          </TableCell>
+        )}
+      </TableRow>
+    ));
+  };
+
+  // Render action buttons based on active tab
+  const renderActionButtons = () => {
+    if (activeTab === 'gatepasses') {
+      const hasOutRecorded = selectedRecord.items?.some(item => item.out_recorded);
+      
+      return (
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleMaterialOut}
+          disabled={loading || hasOutRecorded}
+          startIcon={<ExitToApp />}
+        >
+          {hasOutRecorded ? 'Already Recorded' : 'Record Material Out'}
+        </Button>
+      );
+    } else if (activeTab === 'out') {
+      const hasReceivedItems = selectedRecord.items?.some(item => item.status === 'received');
+      
+      return (
+        <Button
+          variant="contained"
+          color="success"
+          onClick={handleMaterialIn}
+          disabled={loading || !hasReceivedItems}
+          startIcon={<CheckCircle />}
+        >
+          Record Material In
+        </Button>
+      );
+    }
+    return null;
+  };
+
+  // Render detail view based on active tab
+  const renderDetailView = () => {
+    if (!selectedRecord) return null;
+    
+    return (
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Button 
+            startIcon={<ArrowBack />} 
+            onClick={handleBackToList}
+            sx={{ mr: 2 }}
           >
-            <ListItemIcon sx={{ color: colors.text }}>
-              <LocalShipping />
-            </ListItemIcon>
-            <ListItemText primary="Material Out" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton
-            selected={activeTab === 'materialIn'}
-            onClick={() => setActiveTab('materialIn')}
-            sx={{ borderRadius: 1, '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
-          >
-            <ListItemIcon sx={{ color: colors.text }}>
-              <Input />
-            </ListItemIcon>
-            <ListItemText primary="Material In" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-    </Box>
-  );
+            Back
+          </Button>
+          <Typography variant="h6">
+            {activeTab === 'gatepasses' ? 'Gate Pass' : 
+             activeTab === 'out' ? 'Material Out (Record In)' : 'Material In'} Details
+          </Typography>
+        </Box>
+        
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+          <div>
+            <Typography variant="body2" color="textSecondary">Gate Pass No</Typography>
+            <Typography>{selectedRecord.gate_pass_no}</Typography>
+          </div>
+          <div>
+            <Typography variant="body2" color="textSecondary">PR Number</Typography>
+            <Typography>{selectedRecord.pr_num}</Typography>
+          </div>
+          <div>
+            <Typography variant="body2" color="textSecondary">Supplier</Typography>
+            <Typography>{selectedRecord.supplier_name}</Typography>
+          </div>
+          <div>
+            <Typography variant="body2" color="textSecondary">Vehicle No</Typography>
+            <Typography>{selectedRecord.vehicle_num}</Typography>
+          </div>
+          <div>
+            <Typography variant="body2" color="textSecondary">Document Type</Typography>
+            <Typography>{selectedRecord.document_type}</Typography>
+          </div>
+          {activeTab !== 'gatepasses' && (
+            <>
+              <div>
+                <Typography variant="body2" color="textSecondary">Movement Type</Typography>
+                <Typography>{selectedRecord.movement_type}</Typography>
+              </div>
+              <div>
+                <Typography variant="body2" color="textSecondary">Status</Typography>
+                <Chip 
+                  label={selectedRecord.status} 
+                  color={
+                    selectedRecord.status === 'completed' ? 'success' : 
+                    selectedRecord.status === 'partial' ? 'warning' : 'default'
+                  } 
+                />
+              </div>
+            </>
+          )}
+        </Box>
+
+        <Divider sx={{ my: 3 }} />
+
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Items
+        </Typography>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                {activeTab === 'out' && <TableCell>Received</TableCell>}
+                <TableCell>Item Code</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Unit</TableCell>
+                {(activeTab === 'gatepasses' || activeTab === 'in') && <TableCell>Status</TableCell>}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {renderItemRows()}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          {renderActionButtons()}
+        </Box>
+      </Paper>
+    );
+  };
+
+  // Render list view based on active tab
+  const renderListView = () => {
+    let data = [];
+    let columns = [];
+    
+    if (activeTab === 'gatepasses') {
+      data = gatePasses;
+      columns = [
+        { id: 'gate_pass_no', label: 'Gate Pass No' },
+        { id: 'pr_num', label: 'PR Number' },
+        { id: 'supplier_name', label: 'Supplier' },
+        { id: 'vehicle_num', label: 'Vehicle No' },
+        { id: 'document_type', label: 'Document Type' },
+        { id: 'out_recorded', label: 'Material Out', format: (value) => (
+          <Chip 
+            label={value ? 'Recorded' : 'Pending'} 
+            color={value ? 'success' : 'warning'} 
+            size="small" 
+          />
+        )},
+      ];
+    } else if (activeTab === 'out') {
+      data = materialOutForIn;
+      columns = [
+        { id: 'gate_pass_no', label: 'Gate Pass No' },
+        { id: 'pr_num', label: 'PR Number' },
+        { id: 'supplier_name', label: 'Supplier' },
+        { id: 'vehicle_num', label: 'Vehicle No' },
+        { id: 'movement_date', label: 'Out Date', format: (value) => new Date(value).toLocaleDateString() },
+        { id: 'status', label: 'Status', format: (value) => (
+          <Chip 
+            label={value} 
+            color={value === 'completed' ? 'success' : 'default'} 
+            size="small" 
+          />
+        )},
+      ];
+    } else if (activeTab === 'in') {
+      data = materialIn;
+      columns = [
+        { id: 'gate_pass_no', label: 'Gate Pass No' },
+        { id: 'pr_num', label: 'PR Number' },
+        { id: 'supplier_name', label: 'Supplier' },
+        { id: 'vehicle_num', label: 'Vehicle No' },
+        { id: 'movement_date', label: 'In Date', format: (value) => new Date(value).toLocaleDateString() },
+        { id: 'status', label: 'Status', format: (value) => (
+          <Chip 
+            label={value} 
+            color={value === 'completed' ? 'success' : 'warning'} 
+            size="small" 
+          />
+        )},
+      ];
+    }
+
+    return (
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              {columns.map((column) => (
+                <TableCell key={column.id}>{column.label}</TableCell>
+              ))}
+              <TableCell>Action</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + 1} align="center">
+                  <CircularProgress />
+                </TableCell>
+              </TableRow>
+            ) : data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + 1} align="center">
+                  No records found
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((row) => (
+                <TableRow key={row.id || row.gate_pass_no}>
+                  {columns.map((column) => {
+                    const value = row[column.id];
+                    return (
+                      <TableCell key={column.id}>
+                        {column.format ? column.format(value) : value}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell>
+                    <Button onClick={() => {
+                      if (activeTab === 'gatepasses') {
+                        fetchGatePassDetails(row.gate_pass_no);
+                      } else if (activeTab === 'out') {
+                        fetchMaterialOutDetails(row.id);
+                      } else if (activeTab === 'in') {
+                        fetchMaterialInDetails(row.id);
+                      }
+                    }}>
+                      View Details
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
 
   return (
-    <Box sx={{ display: 'flex', backgroundColor: colors.background }}>
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          backgroundColor: 'white',
-          color: colors.dark,
-          boxShadow: 'none',
-          borderBottom: `1px solid ${colors.light}`,
-        }}
+    <Box sx={{ p: 3 }}>
+      <Tabs 
+        value={activeTab} 
+        onChange={(e, newTab) => handleTabChange(newTab)}
+        sx={{ mb: 3 }}
       >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <Menu />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Security Dashboard
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        aria-label="security options"
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+        <Tab 
+          value="gatepasses" 
+          label="Gate Passes (Material Out)" 
+          icon={<ExitToApp />} 
+          iconPosition="start" 
+        />
+        <Tab 
+          value="out" 
+          label="Material Out (Record In)" 
+          icon={<LocalShipping />} 
+          iconPosition="start" 
+        />
+        <Tab 
+          value="in" 
+          label="Material In (View)" 
+          icon={<Inventory />} 
+          iconPosition="start" 
+        />
+      </Tabs>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <TextField
+          label={`Search ${activeTab === 'gatepasses' ? 'Gate Pass' : 'Movement'}`}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: <SearchIcon />
           }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
+          sx={{ width: 300 }}
+        />
       </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          pt: { xs: 10, sm: 10 },
-          overflow: 'auto',
-        }}
-      >
-        {activeTab === 'materialOut' && (
-          <>
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <TextField
-                label="Gate Pass Number"
-                value={gatePassNo}
-                onChange={(e) => setGatePassNo(e.target.value)}
-                sx={{ width: 300 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <Button
-                variant="contained"
-                onClick={handleVerify}
-                disabled={loading}
-                sx={{ backgroundColor: colors.primary, '&:hover': { backgroundColor: '#085c9e' } }}
-              >
-                {loading ? 'Verifying...' : 'Verify'}
-              </Button>
-            </Box>
-            {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {error}
-              </Alert>
-            )}
-            {requisition && (
-              <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-                  Requisition Details: {requisition.pr_num}
-                </Typography>
-                <Box sx={{ mb: 2 }}>
-                  <Typography><strong>Status:</strong> <Chip label={requisition.status} color={getStatusColor(requisition.status)} size="small" /></Typography>
-                  <Typography><strong>Gate Pass No:</strong> {requisition.gate_pass_no}</Typography>
-                  <Typography><strong>Supplier:</strong> {requisition.supplier_name}</Typography>
-                  <Typography><strong>Supplier Address:</strong> {requisition.supplier_address}</Typography>
-                  <Typography><strong>Transporter:</strong> {requisition.transporter_name}</Typography>
-                  <Typography><strong>Vehicle No:</strong> {requisition.vehicle_num}</Typography>
-                  <Typography><strong>Date:</strong> {new Date(requisition.requisition_date).toLocaleDateString()}</Typography>
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  Items ({requisition.items?.length || 0}):
-                </Typography>
-                <TableContainer component={Paper}>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Item No</strong></TableCell>
-                        <TableCell><strong>Description</strong></TableCell>
-                        <TableCell><strong>Item Code</strong></TableCell>
-                        <TableCell><strong>Quantity</strong></TableCell>
-                        <TableCell><strong>Unit</strong></TableCell>
-                        <TableCell><strong>Approx Cost</strong></TableCell>
-                        <TableCell><strong>Remarks</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {requisition.items?.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.pr_itm_num}</TableCell>
-                          <TableCell>{item.material_description}</TableCell>
-                          <TableCell>{item.item_code}</TableCell>
-                          <TableCell>{item.quantity_requested}</TableCell>
-                          <TableCell>{item.unit}</TableCell>
-                          <TableCell>{item.approx_cost}</TableCell>
-                          <TableCell>{item.remarks || '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                  <Button
-                    variant="contained"
-                    startIcon={<CheckCircle />}
-                    onClick={() => handleStatusUpdate('securityapprove')}
-                    disabled={loading}
-                    sx={{ backgroundColor: colors.success, '&:hover': { backgroundColor: '#4cae4c' } }}
-                  >
-                    Material Out
-                  </Button>
-                  <Button
-                    variant="contained"
-                    startIcon={<Cancel />}
-                    onClick={() => handleStatusUpdate('securityreject')}
-                    disabled={loading}
-                    sx={{ backgroundColor: colors.danger, '&:hover': { backgroundColor: '#c9302c' } }}
-                  >
-                    Reject
-                  </Button>
-                </Box>
-              </Paper>
-            )}
-            <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 'bold' }}>
-              Material Out History
-            </Typography>
-            {loading ? (
-              <Typography>Loading...</Typography>
-            ) : materialOutRequisitions.length === 0 ? (
-              <Typography>No material out records found</Typography>
-            ) : (
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>PR Number</strong></TableCell>
-                      <TableCell><strong>Gate Pass No</strong></TableCell>
-                      <TableCell><strong>Supplier</strong></TableCell>
-                      <TableCell><strong>Date</strong></TableCell>
-                      <TableCell><strong>Status</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {materialOutRequisitions.map((req) => (
-                      <TableRow key={req.id}>
-                        <TableCell>{req.pr_num}</TableCell>
-                        <TableCell>{req.gate_pass_no}</TableCell>
-                        <TableCell>{req.supplier_name}</TableCell>
-                        <TableCell>{new Date(req.requisition_date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Chip label={req.status} color={getStatusColor(req.status)} size="small" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </>
-        )}
-        {activeTab === 'materialIn' && (
-          <Box>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Material In (To be implemented)
-            </Typography>
-            <Typography>Feature coming soon...</Typography>
-          </Box>
-        )}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Box>
+
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+
+      {selectedRecord ? renderDetailView() : renderListView()}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        message={snackbar.message}
+      />
     </Box>
   );
 };

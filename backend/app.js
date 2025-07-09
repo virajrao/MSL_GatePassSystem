@@ -49,220 +49,58 @@ const SAP_CONFIG1 = {
   TIMEOUT: 30000,
 };
 
-// ==================== REQUISITION ENDPOINTS ====================
+// ==================== AUTHENTICATION ENDPOINTS ====================
 
-app.get('/api/requisitions', async (req, res) => {
+app.post('/api/register', async (req, res) => {
+  const { username, password, role } = req.body;
   try {
-    const { status, dateRange, search, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
-
-    // Build the WHERE clause dynamically
-    let whereClause = 'WHERE r.status = ?';
-    const params = [status];
-
-    // Apply date range filter
-    if (dateRange && dateRange !== 'all') {
-      if (dateRange === 'today') {
-        whereClause += ' AND r.requisition_date = CURDATE()';
-      } else if (dateRange === 'week') {
-        whereClause += ' AND r.requisition_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
-      } else if (dateRange === 'month') {
-        whereClause += ' AND r.requisition_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)';
-      }
+    const [existing] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
     }
-
-    // Apply search filter on pr_num or requisitioned_by
-    if (search) {
-      whereClause += ' AND (r.pr_num LIKE ? OR r.requisitioned_by LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
-    }
-
-    // Fetch requisitions with their details
-    const [requisitions] = await pool.query(`
-      SELECT 
-        r.id, r.pr_num, r.department_id, r.department_code, r.requisitioned_by, 
-        r.requisition_date, r.status, r.remarks,
-        d.gate_pass_no, d.document_type, d.fiscal_year, d.issued_by, d.authorized_by, 
-        d.remarks AS details_remarks, d.transporter_name, d.transporter_gstin, 
-        d.ewaybill_no, d.u_no, d.physical_challan_num, d.challan_date, 
-        d.transaction_date, d.buyer_name, d.approval_authority, d.vehicle_num,
-        d.supplier_id, d.supplier_name, d.supplier_address, d.supplier_gstin, d.supplier_contact
-      FROM requisitions_1 r
-      LEFT JOIN requisition_details d ON r.id = d.requisition_id
-      ${whereClause}
-      ORDER BY r.requisition_date DESC
-      LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
-
-    // If there are requisitions, fetch their items
-    if (requisitions.length > 0) {
-      const requisitionIds = requisitions.map(req => req.id);
-      const [items] = await pool.query(`
-        SELECT 
-          requisition_id, pr_itm_num, item_code, quantity_requested, unit, 
-          approx_cost, material_description
-        FROM requistion_items_1
-        WHERE requisition_id IN (?)
-      `, [requisitionIds]);
-
-      // Group items by requisition_id
-      const itemsByRequisition = items.reduce((acc, item) => {
-        if (!acc[item.requisition_id]) acc[item.requisition_id] = [];
-        acc[item.requisition_id].push(item);
-        return acc;
-      }, {});
-
-      // Attach items to their respective requisitions
-      requisitions.forEach(req => {
-        req.items = itemsByRequisition[req.id] || [];
-        // Combine gate pass data into a single object
-        req.gatePassData = {
-          gatePassNo: req.gate_pass_no,
-          documentType: req.document_type,
-          fiscalYear: req.fiscal_year,
-          issuedBy: req.issued_by,
-          authorizedBy: req.authorized_by,
-          remarks: req.details_remarks,
-          transporterName: req.transporter_name,
-          transporterGSTIN: req.transporter_gstin,
-          ewaybillNo: req.ewaybill_no,
-          uNo: req.u_no,
-          physicalChallanNum: req.physical_challan_num,
-          challanDate: req.challan_date,
-          transactionDate: req.transaction_date,
-          buyerName: req.buyer_name,
-          approvalAuthority: req.approval_authority,
-          vehicleNum: req.vehicle_num,
-          supplierId: req.supplier_id,
-          supplierName: req.supplier_name,
-          supplierAddress: req.supplier_address,
-          supplierGSTIN: req.supplier_gstin,
-          supplierContact: req.supplier_contact
-        };
-      });
-    }
-
-    res.json(requisitions);
-  } catch (error) {
-    console.error('Error fetching requisitions:', error);
-    res.status(500).json({ 
-      error: 'Error fetching requisitions',
-      details: error.message 
-    });
+    await pool.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [
+      username,
+      password,
+      role,
+    ]);
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
-app.put('/api/requisitions/:id/status', async (req, res) => {
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
   try {
-    const { id } = req.params;
-    const { status, ...gatePassData } = req.body;
-
-    // Validate status
-    if (!['pending', 'storeapprove', 'higherauthapprove', 'rejected', 'completed'].includes(status)) {
-      return res.status(400).json({ success: false, error: 'Invalid status value' });
+    const [users] = await pool.query('SELECT * FROM users WHERE username = ? AND password = ?', [
+      username,
+      password,
+    ]);
+    if (users.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-
-    await pool.query('START TRANSACTION');
-
-    // Check if requisition exists
-    const [requisition] = await pool.query('SELECT id FROM requisitions_1 WHERE id = ?', [id]);
-    if (requisition.length === 0) {
-      await pool.query('ROLLBACK');
-      return res.status(404).json({ success: false, error: 'Requisition not found' });
-    }
-
-    // Update requisition status
-    await pool.query('UPDATE requisitions_1 SET status = ? WHERE id = ?', [status, id]);
-
-    // Insert or update gate pass details
-    const [existingDetails] = await pool.query(
-      'SELECT id FROM requisition_details WHERE requisition_id = ?', 
-      [id]
-    );
-
-    if (existingDetails.length > 0) {
-      await pool.query(
-        `UPDATE requisition_details SET
-          gate_pass_no = ?, document_type = ?, fiscal_year = ?, issued_by = ?,
-          authorized_by = ?, remarks = ?, transporter_name = ?, transporter_gstin = ?,
-          ewaybill_no = ?, u_no = ?, physical_challan_num = ?, challan_date = ?,
-          transaction_date = ?, buyer_name = ?, approval_authority = ?, vehicle_num = ?,
-          supplier_id = ?, supplier_name = ?, supplier_address = ?, supplier_gstin = ?,
-          supplier_contact = ?
-         WHERE requisition_id = ?`,
-        [
-          gatePassData.gatePassNo,
-          gatePassData.documentType,
-          gatePassData.fiscalYear,
-          gatePassData.issuedBy,
-          gatePassData.authorizedBy,
-          gatePassData.remarks,
-          gatePassData.transporterName,
-          gatePassData.transporterGSTIN,
-          gatePassData.ewaybillNo,
-          gatePassData.uNo,
-          gatePassData.physicalChallanNum,
-          gatePassData.challanDate,
-          gatePassData.transactionDate,
-          gatePassData.buyerName,
-          gatePassData.approvalAuthority,
-          gatePassData.vehicleNum,
-          gatePassData.supplierId,
-          gatePassData.supplierName,
-          gatePassData.supplierAddress,
-          gatePassData.supplierGSTIN,
-          gatePassData.supplierContact,
-          id
-        ]
-      );
-    } else {
-      await pool.query(
-        `INSERT INTO requisition_details (
-          requisition_id, gate_pass_no, document_type, fiscal_year, issued_by,
-          authorized_by, remarks, transporter_name, transporter_gstin,
-          ewaybill_no, u_no, physical_challan_num, challan_date,
-          transaction_date, buyer_name, approval_authority, vehicle_num,
-          supplier_id, supplier_name, supplier_address, supplier_gstin, supplier_contact
-        ) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          gatePassData.gatePassNo,
-          gatePassData.documentType,
-          gatePassData.fiscalYear,
-          gatePassData.issuedBy,
-          gatePassData.authorizedBy,
-          gatePassData.remarks,
-          gatePassData.transporterName,
-          gatePassData.transporterGSTIN,
-          gatePassData.ewaybillNo,
-          gatePassData.uNo,
-          gatePassData.physicalChallanNum,
-          gatePassData.challanDate,
-          gatePassData.transactionDate,
-          gatePassData.buyerName,
-          gatePassData.approvalAuthority,
-          gatePassData.vehicleNum,
-          gatePassData.supplierId,
-          gatePassData.supplierName,
-          gatePassData.supplierAddress,
-          gatePassData.supplierGSTIN,
-          gatePassData.supplierContact
-        ]
-      );
-    }
-
-    await pool.query('COMMIT');
-    res.json({ 
-      success: true, 
-      message: 'Requisition status and gate pass details updated successfully' 
-    });
+    const user = {
+      id: users[0].id,
+      username: users[0].username,
+      role: users[0].role,
+    };
+    res.json({ success: true, user });
   } catch (err) {
-    await pool.query('ROLLBACK');
-    console.error('Update requisition error:', err.message);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// ==================== DEPARTMENT ENDPOINTS ====================
+
+app.get('/api/departments', async (req, res) => {
+  try {
+    const [departments] = await pool.query('SELECT id, name, code FROM departments');
+    res.json(departments);
+  } catch (error) {
+    console.error('Error fetching departments:', error);
     res.status(500).json({
-      success: false,
-      error: 'Failed to update requisition',
-      details: err.message,
+      error: 'Error fetching departments',
+      details: error.message,
     });
   }
 });
@@ -343,61 +181,7 @@ app.get('/api/sap/suppliers', async (req, res) => {
   }
 });
 
-// ==================== AUTHENTICATION ENDPOINTS ====================
-
-app.post('/api/register', async (req, res) => {
-  const { username, password, role } = req.body;
-  try {
-    const [existing] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
-    if (existing.length > 0) {
-      return res.status(400).json({ error: 'Username already exists' });
-    }
-    await pool.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [
-      username,
-      password,
-      role,
-    ]);
-    res.status(201).json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Registration failed' });
-  }
-});
-
-app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const [users] = await pool.query('SELECT * FROM users WHERE username = ? AND password = ?', [
-      username,
-      password,
-    ]);
-    if (users.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    const user = {
-      id: users[0].id,
-      username: users[0].username,
-      role: users[0].role,
-    };
-    res.json({ success: true, user });
-  } catch (err) {
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
 // ==================== REQUISITION ENDPOINTS ====================
-
-app.get('/api/departments', async (req, res) => {
-  try {
-    const [departments] = await pool.query('SELECT id, name, code FROM departments');
-    res.json(departments);
-  } catch (error) {
-    console.error('Error fetching departments:', error);
-    res.status(500).json({
-      error: 'Error fetching departments',
-      details: error.message,
-    });
-  }
-});
 
 app.get('/api/validate-requisition/:number', async (req, res) => {
   try {
@@ -768,15 +552,13 @@ app.post('/api/requisitions', async (req, res) => {
 app.put('/api/requisitions/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, ...details } = req.body;
-    console.log(details);
+    const { status, ...gatePassData } = req.body;
 
     // Validate status
     if (!['pending', 'storeapprove', 'higherauthapprove', 'rejected', 'completed'].includes(status)) {
       return res.status(400).json({ success: false, error: 'Invalid status value' });
     }
 
- 
     await pool.query('START TRANSACTION');
 
     // Check if requisition exists
@@ -789,110 +571,88 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
     // Update requisition status
     await pool.query('UPDATE requisitions_1 SET status = ? WHERE id = ?', [status, id]);
 
-    // Check if requisition_details exists
+    // Insert or update gate pass details
     const [existingDetails] = await pool.query(
-      'SELECT * FROM requisition_details WHERE requisition_id = ?',
+      'SELECT id FROM requisition_details WHERE requisition_id = ?', 
       [id]
     );
 
-    // Prepare details with default values for optional fields
-    const detailsData = {
-      gate_pass_no: details.gatePassNo || '',
-      document_type: details.documentType || 'RGP',
-      fiscal_year: details.fiscalYear || new Date().getFullYear(),
-      issued_by: details.issuedBy || '',
-      authorized_by: details.authorizedBy|| '',
-      remarks: details.remarks || '',
-      transporter_name: details.transporterName || '',
-      transporter_gstin: details.transporterGSTIN || '',
-      ewaybill_no: details.ewaybillNo || '',
-      u_no: details.uNo || '',
-      physical_challan_num: details.physicalChallanNum || '',
-      challan_date: details.challanDate || null,
-      transaction_date: details.transactionDate || null,
-      buyer_name: details.buyerName || '',
-      approval_authority: details.approvalAuthority || '',
-      supplier_id: details.supplierId || '',
-      supplier_name: details.supplierName || '',
-      supplier_address: details.supplierAddress || '',
-      supplier_gstin: details.supplierGSTIN || '',
-      supplier_contact: details.supplierContact || '',
-      vehicle_num: details.vehicleNum
-    };
-
     if (existingDetails.length > 0) {
       await pool.query(
-        `UPDATE requisition_details SET 
-         gate_pass_no = ?, document_type = ?, fiscal_year = ?, issued_by = ?, 
-         authorized_by = ?, remarks = ?, transporter_name = ?, transporter_gstin = ?, 
-         ewaybill_no = ?, u_no = ?, physical_challan_num = ?, challan_date = ?, 
-         transaction_date = ?, buyer_name = ?, approval_authority = ?, 
-         supplier_id = ?, supplier_name = ?, supplier_address = ?, 
-         supplier_gstin = ?, supplier_contact = ?
+        `UPDATE requisition_details SET
+          gate_pass_no = ?, document_type = ?, fiscal_year = ?, issued_by = ?,
+          authorized_by = ?, remarks = ?, transporter_name = ?, transporter_gstin = ?,
+          ewaybill_no = ?, u_no = ?, physical_challan_num = ?, challan_date = ?,
+          transaction_date = ?, buyer_name = ?, approval_authority = ?, vehicle_num = ?,
+          supplier_id = ?, supplier_name = ?, supplier_address = ?, supplier_gstin = ?,
+          supplier_contact = ?
          WHERE requisition_id = ?`,
         [
-          detailsData.gate_pass_no,
-          detailsData.document_type,
-          detailsData.fiscal_year,
-          detailsData.issued_by,
-          detailsData.authorized_by,
-          detailsData.remarks,
-          detailsData.transporter_name,
-          detailsData.transporter_gstin,
-          detailsData.ewaybill_no,
-          detailsData.u_no,
-          detailsData.physical_challan_num,
-          detailsData.challan_date,
-          detailsData.transaction_date,
-          detailsData.buyer_name,
-          detailsData.approval_authority,
-          detailsData.supplier_id,
-          detailsData.supplier_name,
-          detailsData.supplier_address,
-          detailsData.supplier_gstin,
-          detailsData.supplier_contact,
-          id,
+          gatePassData.gatePassNo,
+          gatePassData.documentType,
+          gatePassData.fiscalYear,
+          gatePassData.issuedBy,
+          gatePassData.authorizedBy,
+          gatePassData.remarks,
+          gatePassData.transporterName,
+          gatePassData.transporterGSTIN,
+          gatePassData.ewaybillNo,
+          gatePassData.uNo,
+          gatePassData.physicalChallanNum,
+          gatePassData.challanDate,
+          gatePassData.transactionDate,
+          gatePassData.buyerName,
+          gatePassData.approvalAuthority,
+          gatePassData.vehicleNum,
+          gatePassData.supplierId,
+          gatePassData.supplierName,
+          gatePassData.supplierAddress,
+          gatePassData.supplierGSTIN,
+          gatePassData.supplierContact,
+          id
         ]
       );
     } else {
       await pool.query(
         `INSERT INTO requisition_details (
-          requisition_id, gate_pass_no, document_type, fiscal_year, issued_by, 
-          authorized_by, remarks, transporter_name, transporter_gstin, 
-          ewaybill_no, u_no, physical_challan_num, challan_date, 
-          transaction_date, buyer_name, approval_authority, 
-          supplier_id, supplier_name, supplier_address, supplier_gstin, supplier_contact,vehicle_num
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
+          requisition_id, gate_pass_no, document_type, fiscal_year, issued_by,
+          authorized_by, remarks, transporter_name, transporter_gstin,
+          ewaybill_no, u_no, physical_challan_num, challan_date,
+          transaction_date, buyer_name, approval_authority, vehicle_num,
+          supplier_id, supplier_name, supplier_address, supplier_gstin, supplier_contact
+        ) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
-          detailsData.gate_pass_no,
-          detailsData.document_type,
-          detailsData.fiscal_year,
-          detailsData.issued_by,
-          detailsData.authorized_by,
-          detailsData.remarks,
-          detailsData.transporter_name,
-          detailsData.transporter_gstin,
-          detailsData.ewaybill_no,
-          detailsData.u_no,
-          detailsData.physical_challan_num,
-          detailsData.challan_date,
-          detailsData.transaction_date,
-          detailsData.buyer_name,
-          detailsData.approval_authority,
-          detailsData.supplier_id,
-          detailsData.supplier_name,
-          detailsData.supplier_address,
-          detailsData.supplier_gstin,
-          detailsData.supplier_contact,
-          detailsData.vehicle_num
-
+          gatePassData.gatePassNo,
+          gatePassData.documentType,
+          gatePassData.fiscalYear,
+          gatePassData.issuedBy,
+          gatePassData.authorizedBy,
+          gatePassData.remarks,
+          gatePassData.transporterName,
+          gatePassData.transporterGSTIN,
+          gatePassData.ewaybillNo,
+          gatePassData.uNo,
+          gatePassData.physicalChallanNum,
+          gatePassData.challanDate,
+          gatePassData.transactionDate,
+          gatePassData.buyerName,
+          gatePassData.approvalAuthority,
+          gatePassData.vehicleNum,
+          gatePassData.supplierId,
+          gatePassData.supplierName,
+          gatePassData.supplierAddress,
+          gatePassData.supplierGSTIN,
+          gatePassData.supplierContact
         ]
       );
     }
 
     await pool.query('COMMIT');
-    res.json({ success: true, message: 'Requisition updated successfully' });
+    res.json({ 
+      success: true, 
+      message: 'Requisition status and gate pass details updated successfully' 
+    });
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error('Update requisition error:', err.message);
@@ -904,11 +664,44 @@ app.put('/api/requisitions/:id/status', async (req, res) => {
   }
 });
 
+// ==================== ADMIN REJECT ENDPOINT ====================
+app.put('/api/AdminReject', async (req, res) => {
+  try {
+    const { requisitionId } = req.body;
+
+    if (!requisitionId) {
+      return res.status(400).json({ error: 'Requisition ID is required' });
+    }
+
+    await pool.query('START TRANSACTION');
+
+    // Update requisition status to 'rejected'
+    await pool.query(
+      'UPDATE requisitions_1 SET status = ? WHERE id = ?',
+      ['rejected', requisitionId]
+    );
+
+    await pool.query('COMMIT');
+    res.json({ 
+      success: true,
+      message: 'Requisition rejected successfully'
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Error rejecting requisition:', error);
+    res.status(500).json({ 
+      error: 'Failed to reject requisition',
+      details: error.message
+    });
+  }
+});
+
+
 app.put('/api/requisitions/:id/state', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, ...details } = req.body;
-    gatepassData = details.details;
+    const gatepassData = details.details;
     console.log(gatepassData);
 
     // Validate status
@@ -916,7 +709,6 @@ app.put('/api/requisitions/:id/state', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid status value' });
     }
 
- 
     await pool.query('START TRANSACTION');
 
     // Check if requisition exists
@@ -944,12 +736,13 @@ app.put('/api/requisitions/:id/state', async (req, res) => {
       authorized_by: gatepassData.authorized_by|| '',
       remarks: gatepassData.details_remarks || '',
       transporter_name: gatepassData.transporter_name || '',
+
       transporter_gstin: gatepassData.transporter_gstin || '',
       ewaybill_no: gatepassData.ewaybill_no || '',
       u_no: gatepassData.u_no || '',
       physical_challan_num: gatepassData.physical_challan_num || '',
-      challan_date: gatepassData.challan_date?new Date(gatepassData.challan_date).toLocaleDateString('en-GB') : null,
-      transaction_date: gatepassData.transaction_date ?new Date(gatepassData.transaction_date).toLocaleDateString('en-GB') : null,
+      challan_date: gatepassData.challan_date ? new Date(gatepassData.challan_date).toLocaleDateString('en-GB') : null,
+      transaction_date: gatepassData.transaction_date ? new Date(gatepassData.transaction_date).toLocaleDateString('en-GB') : null,
       buyer_name: gatepassData.buyer_name || '',
       approval_authority: gatepassData.approval_authority || '',
       supplier_id: gatepassData.supplier_id || '',
@@ -1026,7 +819,6 @@ app.put('/api/requisitions/:id/state', async (req, res) => {
           detailsData.supplier_gstin,
           detailsData.supplier_contact,
           detailsData.vehicle_num
-
         ]
       );
     }
@@ -1067,13 +859,11 @@ app.get('/api/requisitions/:userId', async (req, res) => {
 });
 
 app.get('/api/requisitions', async (req, res) => {
-
   try {
     const { status } = req.query;
     if (!status) {
       return res.status(400).json({ error: 'Status parameter is required' });
     }
-    console
     const [requisitions] = await pool.query(
       `SELECT id, pr_num, department_id, department_code, requisitioned_by,
        requisition_date, status, remarks FROM requisitions_1 r
@@ -1088,7 +878,6 @@ app.get('/api/requisitions', async (req, res) => {
       req.items = items;
     }
     res.json(requisitions);
-   
   } catch (error) {
     console.error('Error fetching requisitions:', error);
     res.status(500).json({
@@ -1098,54 +887,6 @@ app.get('/api/requisitions', async (req, res) => {
   }
 });
 
-
-app.post('/api/gatepasses', async (req, res) => {
-  try {
-    const { gatePassNo, requisitionId, fiscalYear, documentType, issuedBy, authorizedBy, remarks, items } =
-      req.body;
-    await pool.query('START TRANSACTION');
-    const [result] = await pool.query(
-      `INSERT INTO gatepasses
-       (gate_pass_no, requisition_id, fiscal_year, document_type, issued_by, authorized_by, remarks, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
-      [gatePassNo, requisitionId, fiscalYear, documentType, issuedBy, authorizedBy, remarks]
-    );
-    const gatePassId = result.insertId;
-    for (const item of items) {
-      await pool.query(
-        `INSERT INTO gate_pass_items
-         (gate_pass_id, item_code, material_description, unit, quantity, remarks)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          gatePassId,
-          item.item_code || null,
-          item.material_description,
-          item.unit,
-          item.quantity_requested,
-          item.remarks || '',
-        ]
-      );
-    }
-    await pool.query('COMMIT');
-    res.json({
-      success: true,
-      message: 'Gate pass created successfully',
-      gatePassId,
-      gatePassNo,
-    });
-  } catch (error) {
-    await pool.query('ROLLBACK');
-    console.error('Error creating gate pass:', error);
-    res.status(500).json({
-      error: 'Error creating gate pass',
-      details: error.message,
-    });
-  }
-});
-
-
-
-// Assuming 'pool' is your MySQL connection pool defined in app.js
 app.get('/api/requisitionsdet', async (req, res) => {
   try {
     const { status, dateRange, search, page = 1, limit = 20 } = req.query;
@@ -1211,8 +952,6 @@ app.get('/api/requisitionsdet', async (req, res) => {
       requisitions.forEach(req => {
         req.items = itemsByRequisition[req.id] || [];
       });
-      
-      
     }
 
     res.json(requisitions);
@@ -1222,6 +961,497 @@ app.get('/api/requisitionsdet', async (req, res) => {
   }
 });
 
+// ==================== GATEPASS ENDPOINTS ====================
+
+app.post('/api/gatepasses', async (req, res) => {
+  try {
+    const { gatePassNo, requisitionId, fiscalYear, documentType, issuedBy, authorizedBy, remarks, items } =
+      req.body;
+    await pool.query('START TRANSACTION');
+    const [result] = await pool.query(
+      `INSERT INTO gatepasses
+       (gate_pass_no, requisition_id, fiscal_year, document_type, issued_by, authorized_by, remarks, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+      [gatePassNo, requisitionId, fiscalYear, documentType, issuedBy, authorizedBy, remarks]
+    );
+    const gatePassId = result.insertId;
+    for (const item of items) {
+      await pool.query(
+        `INSERT INTO gate_pass_items
+         (gate_pass_id, item_code, material_description, unit, quantity, remarks)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          gatePassId,
+          item.item_code || null,
+          item.material_description,
+          item.unit,
+          item.quantity_requested,
+          item.remarks || '',
+        ]
+      );
+    }
+    await pool.query('COMMIT');
+    res.json({
+      success: true,
+      message: 'Gate pass created successfully',
+      gatePassId,
+      gatePassNo,
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Error creating gate pass:', error);
+    res.status(500).json({
+      error: 'Error creating gate pass',
+      details: error.message,
+    });
+  }
+});
+
+app.get('/api/gatepasses', async (req, res) => {
+  try {
+    const { status, search, documentType } = req.query;
+    
+    if (!status) {
+      return res.status(400).json({ error: 'Status parameter is required' });
+    }
+
+    let query = `
+      SELECT 
+        r.id AS requisition_id,
+        r.pr_num,
+        r.status,
+        rd.gate_pass_no,
+        rd.supplier_name,
+        rd.vehicle_num,
+        rd.document_type,
+        EXISTS(
+          SELECT 1 FROM material_movements mm 
+          WHERE mm.gate_pass_no = rd.gate_pass_no 
+          AND mm.movement_type = 'out'
+        ) AS out_recorded
+      FROM requisitions_1 r
+      JOIN requisition_details rd ON r.id = rd.requisition_id
+      WHERE r.status = ?
+    `;
+    
+    const params = [status];
+    
+    if (documentType) {
+      query += ` AND rd.document_type = ?`;
+      params.push(documentType);
+    }
+    
+    if (search) {
+      query += ` AND (rd.gate_pass_no LIKE ? OR r.pr_num LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    const [results] = await pool.query(query, params);
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching gate passes:', error);
+    res.status(500).json({ error: 'Failed to fetch gate passes', details: error.message });
+  }
+});
+
+app.get('/api/gatepasses/:gatePassNo', async (req, res) => {
+  try {
+    const { gatePassNo } = req.params;
+    const { checkOut } = req.query;
+    
+    // Get requisition and details
+    const [requisition] = await pool.query(`
+      SELECT 
+        r.id AS requisition_id,
+        r.pr_num,
+        r.status,
+        rd.*,
+        EXISTS(
+          SELECT 1 FROM material_movements mm 
+          WHERE mm.gate_pass_no = rd.gate_pass_no 
+          AND mm.movement_type = 'out'
+        ) AS out_recorded
+      FROM requisitions_1 r
+      JOIN requisition_details rd ON r.id = rd.requisition_id
+      WHERE rd.gate_pass_no = ?
+    `, [gatePassNo]);
+    
+    if (requisition.length === 0) {
+      return res.status(404).json({ error: 'Gate pass not found' });
+    }
+    
+    // Get items
+    const [items] = await pool.query(`
+      SELECT 
+        id,
+        item_code,
+        material_description,
+        quantity_requested,
+        unit
+      FROM requistion_items_1 
+      WHERE requisition_id = ?
+    `, [requisition[0].requisition_id]);
+    
+    // Check if any items have been received (for material in)
+    if (checkOut) {
+      const [outItems] = await pool.query(`
+        SELECT requisition_item_id 
+        FROM material_movement_items
+        JOIN material_movements ON material_movement_items.movement_id = material_movements.id
+        WHERE material_movements.gate_pass_no = ? 
+        AND material_movements.movement_type = 'out'
+      `, [gatePassNo]);
+      
+      const outIds = outItems.map(item => item.requisition_item_id);
+      items.forEach(item => {
+        item.out_recorded = outIds.includes(item.id);
+      });
+    }
+    
+    res.json({
+      ...requisition[0],
+      items
+    });
+  } catch (error) {
+    console.error('Error fetching gate pass details:', error);
+    res.status(500).json({ error: 'Failed to fetch gate pass details', details: error.message });
+  }
+});
+
+// ==================== MATERIAL MOVEMENT ENDPOINTS ====================
+
+app.post('/api/material-movements', async (req, res) => {
+  try {
+    const { gate_pass_no, movement_type, items } = req.body;
+    
+    if (!gate_pass_no || !movement_type || !items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'Invalid request data' });
+    }
+
+    await pool.query('START TRANSACTION');
+
+    // Create movement record
+    const [movementResult] = await pool.query(`
+      INSERT INTO material_movements 
+      (gate_pass_no, movement_type, status, movement_date)
+      VALUES (?, ?, 'pending', NOW())
+    `, [gate_pass_no, movement_type]);
+    
+    const movementId = movementResult.insertId;
+    
+    // Create movement items
+    for (const item of items) {
+      await pool.query(`
+        INSERT INTO material_movement_items
+        (movement_id, requisition_item_id, quantity, status)
+        VALUES (?, ?, ?, 'pending')
+      `, [
+        movementId, 
+        item.requisition_item_id, 
+        item.quantity
+      ]);
+    }
+    
+    await pool.query('COMMIT');
+    res.status(201).json({ 
+      success: true,
+      message: 'Material movement recorded successfully',
+      movement_id: movementId
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Error recording material movement:', error);
+    res.status(500).json({ 
+      error: 'Failed to record material movement',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/material-out-for-in', async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    let query = `
+      SELECT 
+        mm.id,
+        mm.gate_pass_no,
+        mm.movement_type,
+        mm.status,
+        mm.movement_date,
+        rd.supplier_name,
+        rd.vehicle_num,
+        r.pr_num
+      FROM material_movements mm
+      JOIN requisition_details rd ON mm.gate_pass_no = rd.gate_pass_no
+      JOIN requisitions_1 r ON rd.requisition_id = r.id
+      WHERE mm.movement_type = 'out'
+      AND NOT EXISTS (
+        SELECT 1 FROM material_movements mm_in 
+        WHERE mm_in.related_movement_id = mm.id
+        AND mm_in.movement_type = 'in'
+      )
+    `;
+    
+    const params = [];
+    
+    if (search) {
+      query += ` AND (mm.gate_pass_no LIKE ? OR r.pr_num LIKE ? OR rd.vehicle_num LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    
+    query += ` ORDER BY mm.movement_date DESC`;
+    
+    const [results] = await pool.query(query, params);
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching material out records:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch material out records',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/material-out-for-in/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get movement
+    const [movement] = await pool.query(`
+      SELECT 
+        mm.id,
+        mm.gate_pass_no,
+        mm.movement_type,
+        mm.status,
+        mm.movement_date,
+        rd.supplier_name,
+        rd.vehicle_num,
+        r.pr_num,
+        rd.transporter_name,
+        rd.ewaybill_no,
+        rd.challan_date
+      FROM material_movements mm
+      JOIN requisition_details rd ON mm.gate_pass_no = rd.gate_pass_no
+      JOIN requisitions_1 r ON rd.requisition_id = r.id
+      WHERE mm.id = ? AND mm.movement_type = 'out'
+    `, [id]);
+    
+    if (movement.length === 0) {
+      return res.status(404).json({ error: 'Movement not found' });
+    }
+    
+    // Get items
+    const [items] = await pool.query(`
+      SELECT 
+        mmi.id,
+        mmi.requisition_item_id,
+        mmi.quantity,
+        ri.item_code,
+        ri.material_description,
+        ri.quantity_requested,
+        ri.unit,
+        ri.approx_cost,
+        ri.currency,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM material_movement_items mmi_in
+          JOIN material_movements mm_in ON mmi_in.movement_id = mm_in.id
+          WHERE mmi_in.requisition_item_id = mmi.requisition_item_id
+          AND mm_in.related_movement_id = ?
+          AND mm_in.movement_type = 'in'
+        ) THEN 'received' ELSE 'pending' END as status
+      FROM material_movement_items mmi
+      JOIN requistion_items_1 ri ON mmi.requisition_item_id = ri.id
+      WHERE mmi.movement_id = ?
+    `, [id, id]);
+    
+    res.json({
+      ...movement[0],
+      items
+    });
+  } catch (error) {
+    console.error('Error fetching movement details:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch movement details',
+      details: error.message
+    });
+  }
+});
+
+
+// api to handle the request and response for this here 
+
+
+
+app.post('/api/material-in', async (req, res) => {
+  try {
+    const { gate_pass_no, movement_out_id, items } = req.body;
+    
+    if (!gate_pass_no || !movement_out_id || !items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'Invalid request data' });
+    }
+
+    // Start transaction
+    await pool.query('START TRANSACTION');
+
+    // Determine status based on received items
+    const receivedItems = items.filter(item => item.status === 'received');
+    const status = receivedItems.length === items.length ? 'completed' : 'partial';
+
+    // Create movement record
+    const [movementResult] = await pool.query(`
+      INSERT INTO material_movements 
+      (gate_pass_no, movement_type, status, movement_date, related_movement_id)
+      VALUES (?, 'in', ?, NOW(), ?)
+    `, [gate_pass_no, status, movement_out_id]);
+    
+    const movementId = movementResult.insertId;
+    
+    // Create movement items
+    for (const item of items) {
+      if (item.status === 'received') {
+        await pool.query(`
+          INSERT INTO material_movement_items
+          (movement_id, requisition_item_id, quantity, status)
+          VALUES (?, ?, ?, ?)
+        `, [
+          movementId, 
+          item.requisition_item_id, 
+          item.quantity, 
+          'received'
+        ]);
+      }
+    }
+    
+    // Update requisition status if all items are received
+    if (status === 'completed') {
+      await pool.query(`
+        UPDATE requisitions_1 r
+        JOIN requisition_details rd ON r.id = rd.requisition_id
+        SET r.status = 'completed'
+        WHERE rd.gate_pass_no = ?
+      `, [gate_pass_no]);
+    }
+    
+    await pool.query('COMMIT');
+    res.status(201).json({ 
+      success: true,
+      message: 'Material in recorded successfully',
+      movement_id: movementId
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Error recording material in:', error);
+    res.status(500).json({ 
+      error: 'Failed to record material in',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/material-in', async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    let query = `
+      SELECT 
+        mm.id,
+        mm.gate_pass_no,
+        mm.movement_type,
+        mm.status,
+        mm.movement_date,
+        rd.supplier_name,
+        rd.vehicle_num,
+        r.pr_num,
+        rd.transporter_name,
+        rd.ewaybill_no
+      FROM material_movements mm
+      JOIN requisition_details rd ON mm.gate_pass_no = rd.gate_pass_no
+      JOIN requisitions_1 r ON rd.requisition_id = r.id
+      WHERE mm.movement_type = 'in'
+    `;
+    
+    const params = [];
+    
+    if (search) {
+      query += ` AND (mm.gate_pass_no LIKE ? OR r.pr_num LIKE ? OR rd.vehicle_num LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    
+    query += ` ORDER BY mm.movement_date DESC`;
+    
+    const [results] = await pool.query(query, params);
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching material in records:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch material in records',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/material-in/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get movement
+    const [movement] = await pool.query(`
+      SELECT 
+        mm.id,
+        mm.gate_pass_no,
+        mm.movement_type,
+        mm.status,
+        mm.movement_date,
+        rd.supplier_name,
+        rd.vehicle_num,
+        r.pr_num,
+        rd.transporter_name,
+        rd.ewaybill_no,
+        rd.challan_date
+      FROM material_movements mm
+      JOIN requisition_details rd ON mm.gate_pass_no = rd.gate_pass_no
+      JOIN requisitions_1 r ON rd.requisition_id = r.id
+      WHERE mm.id = ? AND mm.movement_type = 'in'
+    `, [id]);
+    
+    if (movement.length === 0) {
+      return res.status(404).json({ error: 'Movement not found' });
+    }
+    
+    // Get items
+    const [items] = await pool.query(`
+      SELECT 
+        mmi.id,
+        mmi.requisition_item_id,
+        mmi.quantity,
+        mmi.status,
+        ri.item_code,
+        ri.material_description,
+        ri.quantity_requested,
+        ri.unit,
+        ri.approx_cost,
+        ri.currency
+      FROM material_movement_items mmi
+      JOIN requistion_items_1 ri ON mmi.requisition_item_id = ri.id
+      WHERE mmi.movement_id = ?
+    `, [id]);
+    
+    res.json({
+      ...movement[0],
+      items
+    });
+  } catch (error) {
+    console.error('Error fetching material in details:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch material in details',
+      details: error.message
+    });
+  }
+});
 
 // ==================== ERROR HANDLING ====================
 

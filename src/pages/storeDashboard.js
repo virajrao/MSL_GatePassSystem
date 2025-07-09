@@ -157,10 +157,9 @@ const StoreDashboard = () => {
         page: reset ? 1 : filter.page,
         limit: filter.limit,
       };
-      const response = await axios.get('http://localhost:5000/api/requisitions', { params });
+      const response = await axios.get('http://localhost:5000/api/requisitionsdet', { params });
       if (reset) {
         setRequisitions(response.data);
-        console.log(response.data)
       } else {
         setRequisitions((prev) => [...prev, ...response.data]);
       }
@@ -225,25 +224,61 @@ const StoreDashboard = () => {
     setOpenSupplierDialog(false);
   };
 
-  const handleOpenDialog = (requisition) => {
-    console.log(requisition)
-    if (!requisition || !requisition.id) {
+  const handleOpenDialog = async (requisition) => {
+    try {
+      setLoading(true);
+      // Fetch full requisition details including gate pass info
+      const response = await axios.get(`http://localhost:5000/api/requisitionsdet`, {
+        params: { 
+          status: activeTab,
+          search: requisition.pr_num,
+          limit: 1
+        }
+      });
+      
+      if (response.data.length === 0) {
+        throw new Error('Requisition details not found');
+      }
+
+      const fullRequisition = response.data[0];
+      setSelectedRequisition(fullRequisition);
+      
+      // Set pass data from requisition details
+      setPassData({
+        gatePassNo: fullRequisition.gate_pass_no || generateGatePassNo(),
+        fiscalYear: fullRequisition.fiscal_year || new Date().getFullYear(),
+        documentType: fullRequisition.document_type || 'RGP',
+        issuedBy: fullRequisition.issued_by || localStorage.getItem('username') || '',
+        authorizedBy: fullRequisition.authorized_by || '',
+        remarks: fullRequisition.details_remarks || '',
+        transporterName: fullRequisition.transporter_name || '',
+        transporterGSTIN: fullRequisition.transporter_gstin || '',
+        ewaybillNo: fullRequisition.ewaybill_no || '',
+        uNo: fullRequisition.u_no || '',
+        physicalChallanNum: fullRequisition.physical_challan_num || '',
+        challanDate: fullRequisition.challan_date || new Date().toISOString().split('T')[0],
+        transactionDate: fullRequisition.transaction_date || new Date().toISOString().split('T')[0],
+        buyerName: fullRequisition.buyer_name || '',
+        approvalAuthority: fullRequisition.approval_authority || '',
+        vehicleNum: fullRequisition.vehicle_num || '',
+        supplierId: fullRequisition.supplier_id || '',
+        supplierName: fullRequisition.supplier_name || '',
+        supplierAddress: fullRequisition.supplier_address || '',
+        supplierGSTIN: fullRequisition.supplier_gstin || '',
+        supplierContact: fullRequisition.supplier_contact || '',
+      });
+      
+      setOpenDialog(true);
+    } catch (error) {
+      console.error('Error fetching requisition details:', error);
       setSnackbar({
         open: true,
-        message: 'Invalid requisition selected',
+        message: 'Failed to load requisition details',
         severity: 'error',
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-    setSelectedRequisition(requisition);
-    setPassData({
-      ...passData,
-      gatePassNo: generateGatePassNo(),
-      issuedBy: localStorage.getItem('username') || '',
-      challanDate: new Date().toISOString().split('T')[0],
-      transactionDate: new Date().toISOString().split('T')[0],
-    });
-    setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
@@ -329,10 +364,9 @@ const StoreDashboard = () => {
   };
 
   const drawer = (
-    <Box sx={{ backgroundColor: colors.dark, color: colors.text, height: '100%', p: 2 }}>
-      <Typography variant="h6" sx={{ p: 2, fontWeight: 'bold' }}>
-        Store Management
-      </Typography>
+    <Box sx={{ backgroundColor: colors.dark, color: colors.text, height: '100%', p: 2,
+    marginTop:'50px'
+     }}>
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
       <List>
         <ListItem disablePadding>
@@ -540,6 +574,11 @@ const StoreDashboard = () => {
                     <Typography variant="body2" sx={{ mb: 2, color: colors.secondary }}>
                       Date: {new Date(requisition.requisition_date).toLocaleDateString()}
                     </Typography>
+                    {requisition.gate_pass_no && (
+                      <Typography variant="body2" sx={{ mb: 1, color: colors.secondary }}>
+                        Gate Pass: {requisition.gate_pass_no}
+                      </Typography>
+                    )}
                     <Divider sx={{ my: 1 }} />
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
@@ -662,7 +701,7 @@ const StoreDashboard = () => {
                           size="small"
                           name="gatePassNo"
                           value={passData.gatePassNo}
-                          disabled
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Assignment sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -675,6 +714,7 @@ const StoreDashboard = () => {
                           value={passData.documentType}
                           onChange={handlePassDataChange}
                           select
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
                         >
                           <MenuItem value="RGP">Returnable Gate Pass (RGP)</MenuItem>
@@ -689,6 +729,7 @@ const StoreDashboard = () => {
                           name="fiscalYear"
                           value={passData.fiscalYear}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -700,6 +741,7 @@ const StoreDashboard = () => {
                           name="issuedBy"
                           value={passData.issuedBy}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -711,6 +753,7 @@ const StoreDashboard = () => {
                           name="authorizedBy"
                           value={passData.authorizedBy}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -722,6 +765,7 @@ const StoreDashboard = () => {
                           name="buyerName"
                           value={passData.buyerName}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -733,6 +777,7 @@ const StoreDashboard = () => {
                           name="approvalAuthority"
                           value={passData.approvalAuthority}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -765,15 +810,17 @@ const StoreDashboard = () => {
                       <Typography variant="subtitle1" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
                         <Business sx={{ mr: 1 }} /> Supplier Information
                       </Typography>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<SearchIcon />}
-                        onClick={handleOpenSupplierDialog}
-                        sx={{ borderColor: colors.primary, color: colors.primary, '&:hover': { backgroundColor: '#f0f7ff', borderColor: colors.primary } }}
-                      >
-                        Select Supplier
-                      </Button>
+                      {selectedRequisition?.status === 'pending' && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<SearchIcon />}
+                          onClick={handleOpenSupplierDialog}
+                          sx={{ borderColor: colors.primary, color: colors.primary, '&:hover': { backgroundColor: '#f0f7ff', borderColor: colors.primary } }}
+                        >
+                          Select Supplier
+                        </Button>
+                      )}
                     </Box>
                     <Grid container spacing={2}>
                       <Grid item xs={12} sm={6} md={4}>
@@ -784,6 +831,7 @@ const StoreDashboard = () => {
                           name="supplierName"
                           value={passData.supplierName}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Business sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -795,6 +843,7 @@ const StoreDashboard = () => {
                           name="supplierGSTIN"
                           value={passData.supplierGSTIN}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -806,6 +855,7 @@ const StoreDashboard = () => {
                           name="supplierContact"
                           value={passData.supplierContact}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -819,6 +869,7 @@ const StoreDashboard = () => {
                           onChange={handlePassDataChange}
                           multiline
                           rows={2}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Note sx={{ color: colors.secondary, mr: 1, alignSelf: 'flex-start' }} /> }}
                         />
                       </Grid>
@@ -839,6 +890,7 @@ const StoreDashboard = () => {
                           name="transporterName"
                           value={passData.transporterName}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Business sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -850,6 +902,7 @@ const StoreDashboard = () => {
                           name="transporterGSTIN"
                           value={passData.transporterGSTIN}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -861,6 +914,7 @@ const StoreDashboard = () => {
                           name="vehicleNum"
                           value={passData.vehicleNum}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <LocalShipping sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -872,17 +926,19 @@ const StoreDashboard = () => {
                           name="ewaybillNo"
                           value={passData.ewaybillNo}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <TextField
-                          label="U No"
+                          label="Service PO Number"
                           fullWidth
                           size="small"
                           name="uNo"
                           value={passData.uNo}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <ConfirmationNumber sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -934,6 +990,7 @@ const StoreDashboard = () => {
                           name="physicalChallanNum"
                           value={passData.physicalChallanNum}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Description sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -946,6 +1003,7 @@ const StoreDashboard = () => {
                           type="date"
                           value={passData.challanDate}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -958,6 +1016,7 @@ const StoreDashboard = () => {
                           type="date"
                           value={passData.transactionDate}
                           onChange={handlePassDataChange}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <DateRange sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -971,6 +1030,7 @@ const StoreDashboard = () => {
                           onChange={handlePassDataChange}
                           multiline
                           rows={2}
+                          disabled={selectedRequisition?.status !== 'pending'}
                           InputProps={{ startAdornment: <Note sx={{ color: colors.secondary, mr: 1, alignSelf: 'flex-start' }} /> }}
                         />
                       </Grid>
@@ -986,7 +1046,7 @@ const StoreDashboard = () => {
               onClick={handleCloseDialog}
               sx={{ borderColor: colors.secondary, color: colors.secondary }}
             >
-              Cancel
+              Close
             </Button>
             {selectedRequisition?.status === 'pending' && (
               <Button
@@ -994,7 +1054,7 @@ const StoreDashboard = () => {
                 onClick={handleSave}
                 sx={{ backgroundColor: colors.primary, '&:hover': { backgroundColor: '#085c9e' } }}
               >
-                Save
+                Approve
               </Button>
             )}
           </DialogActions>

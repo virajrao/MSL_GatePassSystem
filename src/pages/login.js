@@ -148,6 +148,7 @@ export default function Login() {
               >
                 <MenuItem value="user">User</MenuItem>
                 <MenuItem value="store">Store</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
                 <MenuItem value="security">Security</MenuItem>
               </Select>
             </FormControl>

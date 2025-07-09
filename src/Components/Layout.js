@@ -111,6 +111,9 @@ const Layout = () => {
     return location.pathname === path;
   };
 
+  // Check if current route is security dashboard
+  const isSecurityDashboard = location.pathname === '/security-dashboard';
+
   // Mock data for notifications
   const notifications = [
     { id: 1, text: 'Requisition #4567 needs approval', time: '2h ago', read: false },
@@ -167,7 +170,7 @@ const Layout = () => {
       <List sx={{ flexGrow: 1, pt: 0 }}>
         <SAPListItem 
           button 
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/Dashboard')}
           selected={isActive('/')}
         >
           <ListItemIcon sx={{ minWidth: '36px' }}>
@@ -192,25 +195,11 @@ const Layout = () => {
             primaryTypographyProps={{ variant: 'body2', fontWeight: isActive('/create-requisition') ? 600 : 400 }}
           />
         </SAPListItem>
-        
-        
       </List>
       
       {/* System Section */}
       <Box sx={{ p: 2, borderTop: '1px solid #D9D9D9' }}>
-        <SAPListItem 
-          button 
-          onClick={() => navigate('/settings')}
-          selected={isActive('/settings')}
-        >
-          <ListItemIcon sx={{ minWidth: '36px' }}>
-            <SettingsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Settings" 
-            primaryTypographyProps={{ variant: 'body2', fontWeight: isActive('/settings') ? 600 : 400 }}
-          />
-        </SAPListItem>
+       
         
         <Typography variant="caption" color="textSecondary" sx={{ pl: 2, display: 'block', mt: 1 }}>
           SAP Requisition Portal v2.1
@@ -221,21 +210,23 @@ const Layout = () => {
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
-      {/* Header */}
+      {/* Header - Always shown */}
       <SAPAppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar sx={{ minHeight: '64px !important' }}>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ 
-              mr: 2, 
-              display: { sm: 'none' },
-              color: '#32363A'
-            }}
-          >
-            <MenuIcon />
-          </IconButton>
+          {!isSecurityDashboard && (
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ 
+                mr: 2, 
+                display: { sm: 'none' },
+                color: '#32363A'
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           
           {/* Navigation Buttons */}
           <Box sx={{ 
@@ -244,44 +235,23 @@ const Layout = () => {
             flexGrow: 1
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <img 
-            src="https://www.sap.com/dam/application/shared/logos/sap-logo-svg.svg" 
-            alt="SAP Logo" 
-            style={{ height: 24 }} 
-          />
-          <Typography variant="subtitle2" sx={{ ml: 1, fontWeight: 600 }}>
-            RGP/NRGP System
-          </Typography>
-        </Box>
+              <img 
+                src="https://www.sap.com/dam/application/shared/logos/sap-logo-svg.svg" 
+                alt="SAP Logo" 
+                style={{ height: 24 }} 
+              />
+              <Typography variant="subtitle2" sx={{ ml: 1, fontWeight: 600 }}>
+                RGP/NRGP System
+              </Typography>
+            </Box>
           </Box>
           
           {/* Right side icons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton 
-              size="small" 
-              sx={{ color: '#32363A', position: 'relative' }}
-              onClick={() => navigate('/notifications')}
-            >
-              <Badge badgeContent={unreadNotifications} color="error">
-                <NotificationsIcon fontSize="small" />
-              </Badge>
-            </IconButton>
             
-            <IconButton 
-              size="small" 
-              sx={{ color: '#32363A' }}
-              onClick={() => navigate('/help')}
-            >
-              <HelpOutlineIcon fontSize="small" />
-            </IconButton>
             
-            <IconButton 
-              size="small" 
-              sx={{ color: '#32363A' }}
-              onClick={() => navigate('/apps')}
-            >
-              <AppsIcon fontSize="small" />
-            </IconButton>
+           
+            
             
             {/* User menu */}
             <IconButton onClick={handleMenuOpen} size="small" sx={{ ml: 1 }}>
@@ -315,34 +285,10 @@ const Layout = () => {
                 </Typography>
               </MenuItem>
               <Divider />
-              <MenuItem onClick={() => navigate('/profile')} dense>
-                <ListItemIcon sx={{ minWidth: '36px' }}>
-                  <RecentActorsIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="My Profile" 
-                  primaryTypographyProps={{ variant: 'body2' }}
-                />
-              </MenuItem>
-              <MenuItem onClick={() => navigate('/settings')} dense>
-                <ListItemIcon sx={{ minWidth: '36px' }}>
-                  <SettingsIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Settings" 
-                  primaryTypographyProps={{ variant: 'body2' }}
-                />
-              </MenuItem>
-              <MenuItem onClick={() => navigate('/favorites')} dense>
-                <ListItemIcon sx={{ minWidth: '36px' }}>
-                  <StarBorderIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Favorites" 
-                  primaryTypographyProps={{ variant: 'body2' }}
-                />
-              </MenuItem>
-              <Divider />
+             
+              
+             
+             
               <MenuItem onClick={handleLogout} dense>
                 <ListItemIcon sx={{ minWidth: '36px' }}>
                   <ExitToApp fontSize="small" />
@@ -357,37 +303,39 @@ const Layout = () => {
         </Toolbar>
       </SAPAppBar>
 
-      {/* Sidebar Drawer */}
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        aria-label="navigation"
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
+      {/* Sidebar Drawer - Only shown when not on security dashboard */}
+      {!isSecurityDashboard && (
+        <Box
+          component="nav"
+          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+          aria-label="navigation"
         >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{
+              keepMounted: true,
+            }}
+            sx={{
+              display: { xs: 'block', sm: 'none' },
+              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            }}
+          >
+            {drawer}
+          </Drawer>
+          <Drawer
+            variant="permanent"
+            sx={{
+              display: { xs: 'none', sm: 'block' },
+              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        </Box>
+      )}
 
       {/* Main Content */}
       <Box 
@@ -395,7 +343,7 @@ const Layout = () => {
         sx={{ 
           flexGrow: 1, 
           p: 3, 
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          width: { sm: isSecurityDashboard ? '100%' : `calc(100% - ${drawerWidth}px)` },
           bgcolor: '#F5F6F8',
           height: '100vh',
           overflow: 'auto'
