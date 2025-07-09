@@ -7,16 +7,14 @@ export const registerUser = async (userData) => {
 };
 
 export const loginUser = async (credentials) => {
-  console.log(credentials)
   return axios.post(`${API_URL}/login`, credentials);
 };
 export const requisition = async (credentials) => {
-  console.log(credentials);
-  console.log('Requisition endpoint hit'); 
+
   try{
     return axios.post(`${API_URL}/requisition`, credentials);
   }
   catch(er){
-    console.log('ha ha error');
+    console.log('Error in the endpoint');
   }
 };

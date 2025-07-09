@@ -430,11 +430,10 @@ const AdminDashboard = () => {
       const printContent = `
         <html>
           <head>
-            <title>Print Challan - ${selectedRequisition.pr_num}</title>
             <style>
               @page { 
                 size: A4; 
-                margin: 10mm;
+                margin: 1mm;
               }
               @media print {
                 body { 
@@ -443,12 +442,12 @@ const AdminDashboard = () => {
                   margin: 0;
                   padding: 0;
                   font-family: Arial, sans-serif;
-                  font-size: 14px;
+                  font-size: 18px;
                   color: #000;
                   background: #fff;
                 }
                 img {
-                  max-width: 100px;
+                  max-width: 500px;
                   height: auto;
                 }
                 table {
@@ -463,6 +462,7 @@ const AdminDashboard = () => {
                   background-color: #f5f5f5;
                   font-weight: bold;
                   text-align: center;
+                  font-size:16px;
                 }
               }
               body {
@@ -546,13 +546,13 @@ const AdminDashboard = () => {
           <body>
             <div class="challan-container">
               <div class="header">
-                <img src="${MSLLogo}" alt="MSL Logo" style="width: 80px; height: auto; object-fit: contain;" />
+                <img src="${MSLLogo}" alt="MSL Logo" style="width: 100px; height: auto; object-fit: contain;" />
                 <div class="company-info">
                   <h1>MAHARASHTRA SEAMLESS LIMITED</h1>
                   <h2>D.P. JINDAL GROUP OF INDUSTRIES</h2>
                   <p>Sreepuram, Narketpally, Nalgonda-508254, Telangana</p>
                 </div>
-                <img src="${UnitedLogo}" alt="United Logo" style="width: 100px; height: auto; object-fit: contain;" />
+                <img src="${UnitedLogo}" alt="United Logo" style="width: 170px; height: 100px; object-fit: contain;" />
               </div>
 
               <h1 class="title">
@@ -561,13 +561,13 @@ const AdminDashboard = () => {
 
               <div class="details">
                 <div class="details-left">
-                  <p style="font-weight: bold; margin-bottom: 5px;">To:</p>
-                  <p style="margin: 5px 0; min-height: 20px;">${selectedRequisition.supplier_name || ''}</p>
-                  <p style="margin: 5px 0; min-height: 20px;">${selectedRequisition.supplier_address || ''}</p>
+                  <p style="font-weight: bold; margin-bottom: 5px;font-size: 20px;">To:</p>
+                  <p style="margin: 5px 0; min-height: 20px;font-size: 18px;">${selectedRequisition.supplier_name || ''}</p>
+                  <p style="margin: 5px 0; min-height: 20px;font-size: 18px;">${selectedRequisition.supplier_address || ''}</p>
                 </div>
                 <div class="details-right">
-                  <p><strong>Gatepass No:</strong> ${selectedRequisition.gate_pass_no || ''}</p>
-                  <p><strong>Date:</strong> ${selectedRequisition.requisition_date ? new Date(selectedRequisition.requisition_date).toLocaleDateString() : ''}</p>
+                  <p style="font-size: 18px;"><strong>Gatepass No:</strong> ${selectedRequisition.gate_pass_no || ''}</p>
+                  <p style="font-size: 18px;"><strong>Date:</strong> ${selectedRequisition.requisition_date ? new Date(selectedRequisition.requisition_date).toLocaleDateString() : ''}</p>
                 </div>
               </div>
 
@@ -607,18 +607,17 @@ const AdminDashboard = () => {
 
               <div class="footer">
                 <div class="footer-left">
-                  <p style="font-weight: bold; margin-bottom: 5px;">Transport Details:</p>
-                  <p><strong>Through:</strong> ${selectedRequisition.transporter_name || ''}</p>
-                  <p><strong>Vehicle No:</strong> ${selectedRequisition.vehicle_num || ''}</p>
-                  <p><strong>L/R No:</strong> ${selectedRequisition.lr_no || ''}</p>
-                  <p><strong>Date:</strong> ${date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}</p>
+                  <p style="font-weight: bold; margin-bottom: 5px;font-size:18px;">Transport Details:</p>
+                  <p style=" font-size:18px;"><strong >Through:</strong> ${selectedRequisition.transporter_name || ''}</p>
+                  <p style=" font-size:18px;"><strong>Vehicle No:</strong> ${selectedRequisition.vehicle_num || ''}</p>
+                  <p style=" font-size:18px;"><strong>L/R No:</strong> ${selectedRequisition.lr_no || ''}</p>
+                  <p style=" font-size:18px;"><strong>Date:</strong> ${date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}</p>
                 </div>
                 <div class="footer-right">
-                  <p><strong>Received:</strong></p>
-                  <p><strong>Date:</strong> ${selectedRequisition.receive_date ? new Date(selectedRequisition.receive_date).toLocaleDateString() : ''}</p>
-                  <div class="signature">
-                    <p style="font-weight: bold;">Authorized By</p>
-                  </div>
+                  <p style=" font-size:18px;"><strong>Received:</strong></p>
+                  <p style=" font-size:18px;"><strong>Date:</strong> ${selectedRequisition.receive_date ? new Date(selectedRequisition.receive_date).toLocaleDateString() : ''}</p>
+                  <p style="font-weight: bold;font-size:18px;">Authorized By</p>
+                  
                 </div>
               </div>
             </div>

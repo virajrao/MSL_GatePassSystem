@@ -91,6 +91,7 @@ const SecurityDashboard = () => {
         params: { checkOut: true }
       });
       setSelectedRecord(response.data);
+      console.log(response.data);
       navigate(`?tab=${activeTab}&gatePass=${gatePassNo}`, { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch gate pass details');
@@ -129,6 +130,7 @@ const SecurityDashboard = () => {
       setLoading(true);
       const response = await axios.get(`http://localhost:5000/api/material-in/${movementId}`);
       setSelectedRecord(response.data);
+      console.log(response.data);
       navigate(`?tab=${activeTab}&movement=${movementId}`, { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch material in details');
@@ -150,10 +152,28 @@ const SecurityDashboard = () => {
     navigate(`?tab=${newTab}`, { replace: true });
   };
 
-  // Handle material out
   const handleMaterialOut = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
+    
+    // Check if document type is NRGP
+    if (selectedRecord.document_type === 'NRGP') {
+      // For NRGP, directly mark as completed
+      await axios.post('http://localhost:5000/api/material-out-nrgp', {
+        gate_pass_no: selectedRecord.gate_pass_no,
+        items: selectedRecord.items.map(item => ({
+          requisition_item_id: item.id,
+          quantity: item.quantity_requested
+        }))
+      });
+      
+      setSnackbar({
+        open: true,
+        message: `NRGP ${selectedRecord.gate_pass_no} processed as completed automatically`,
+        severity: 'success'
+      });
+    } else {
+      // Normal RGP processing
       await axios.post('http://localhost:5000/api/material-movements', {
         gate_pass_no: selectedRecord.gate_pass_no,
         movement_type: 'out',
@@ -168,19 +188,21 @@ const SecurityDashboard = () => {
         message: `Material out recorded for Gate Pass ${selectedRecord.gate_pass_no}`,
         severity: 'success'
       });
-      handleBackToList();
-      fetchGatePasses();
-      fetchMaterialOutForIn();
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.error || 'Failed to record material out',
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    handleBackToList();
+    fetchGatePasses();
+    fetchMaterialOutForIn();
+  } catch (err) {
+    setSnackbar({
+      open: true,
+      message: err.response?.data?.error || 'Failed to record material movement',
+      severity: 'error'
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Handle material in
   const handleMaterialIn = async () => {
@@ -347,7 +369,7 @@ const SecurityDashboard = () => {
   // Render detail view based on active tab
   const renderDetailView = () => {
     if (!selectedRecord) return null;
-    
+    console.log(selectedRecord);
     return (
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>

@@ -1035,11 +1035,7 @@ app.get('/api/gatepasses', async (req, res) => {
     `;
     
     const params = [status];
-    
-    if (documentType) {
-      query += ` AND rd.document_type = ?`;
-      params.push(documentType);
-    }
+ 
     
     if (search) {
       query += ` AND (rd.gate_pass_no LIKE ? OR r.pr_num LIKE ?)`;
@@ -1281,7 +1277,78 @@ app.get('/api/material-out-for-in/:id', async (req, res) => {
 });
 
 
-// api to handle the request and response for this here 
+// Special endpoint for NRGP processing - doing the material out for the NRGP thing 
+app.post('/api/material-out-nrgp', async (req, res) => {
+  try {
+    const { gate_pass_no, items } = req.body;
+    
+    if (!gate_pass_no || !items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'Invalid request data' });
+    }
+
+    await pool.query('START TRANSACTION');
+
+    // 1. Create OUT movement record
+    const [outMovement] = await pool.query(`
+      INSERT INTO material_movements 
+      (gate_pass_no, movement_type, status, movement_date)
+      VALUES (?, 'out', 'completed', NOW())
+    `, [gate_pass_no]);
+    
+    const outMovementId = outMovement.insertId;
+    
+    // 2. Create OUT movement items
+    for (const item of items) {
+      await pool.query(`
+        INSERT INTO material_movement_items
+        (movement_id, requisition_item_id, quantity, status)
+        VALUES (?, ?, ?, 'received')
+      `, [outMovementId, item.requisition_item_id, item.quantity]);
+    }
+
+    // 3. Create IN movement record (auto-completed)
+    const [inMovement] = await pool.query(`
+      INSERT INTO material_movements 
+      (gate_pass_no, movement_type, status, movement_date, related_movement_id)
+      VALUES (?, 'in', 'completed', NOW(), ?)
+    `, [gate_pass_no, outMovementId]);
+    
+    const inMovementId = inMovement.insertId;
+    
+    // 4. Create IN movement items (auto-completed)
+    for (const item of items) {
+      await pool.query(`
+        INSERT INTO material_movement_items
+        (movement_id, requisition_item_id, quantity, status)
+        VALUES (?, ?, ?, 'received')
+      `, [inMovementId, item.requisition_item_id, item.quantity]);
+    }
+
+    // 5. Update requisition status to 'completed'
+    await pool.query(`
+      UPDATE requisitions_1 r
+      JOIN requisition_details rd ON r.id = rd.requisition_id
+      SET r.status = 'completed'
+      WHERE rd.gate_pass_no = ?
+    `, [gate_pass_no]);
+
+    await pool.query('COMMIT');
+    
+    res.status(201).json({ 
+      success: true,
+      message: 'NRGP processed successfully with auto-completion',
+      out_movement_id: outMovementId,
+      in_movement_id: inMovementId
+    });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Error processing NRGP:', error);
+    res.status(500).json({ 
+      error: 'Failed to process NRGP',
+      details: error.message
+    });
+  }
+});
 
 
 
@@ -1409,6 +1476,7 @@ app.get('/api/material-in/:id', async (req, res) => {
         rd.supplier_name,
         rd.vehicle_num,
         r.pr_num,
+        rd.document_type,
         rd.transporter_name,
         rd.ewaybill_no,
         rd.challan_date
