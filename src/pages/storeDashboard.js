@@ -856,6 +856,9 @@ const StoreDashboard = () => {
                           value={passData.supplierContact}
                           onChange={handlePassDataChange}
                           disabled={selectedRequisition?.status !== 'pending'}
+                            inputProps={{
+                            maxLength: 10,
+                          }}
                           InputProps={{ startAdornment: <Person sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>
@@ -903,6 +906,9 @@ const StoreDashboard = () => {
                           value={passData.transporterGSTIN}
                           onChange={handlePassDataChange}
                           disabled={selectedRequisition?.status !== 'pending'}
+                           inputProps={{
+                            maxLength: 15,
+                          }}
                           InputProps={{ startAdornment: <VerifiedUser sx={{ color: colors.secondary, mr: 1 }} /> }}
                         />
                       </Grid>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
@@ -74,6 +73,10 @@ const colors = {
 
 const drawerWidth = 240;
 const date = new Date();
+
+const getVehicleNumber = (requisition)=>{
+  return requisition.vehicle_num? requisition.vehicle_num.toUpperCase(): ' ';
+} 
 
 const NonReturnableChallan = ({ requisition }) => {
   if (!requisition) {
@@ -246,7 +249,7 @@ const NonReturnableChallan = ({ requisition }) => {
                   border: '1px solid #000',
                   padding: '8px',
                   textAlign: 'center'
-                }}>{item.remarks || '-'}</td>
+                }}>{item.remarks || ' '}</td>
               </tr>
             ))}
             {[...Array(Math.max(0, 10 - (requisition.items?.length || 0)))].map((_, index) => (
@@ -274,27 +277,25 @@ const NonReturnableChallan = ({ requisition }) => {
 
 p>
             <p style={{ margin: '5px 0' }}>
-              <strong>Vehicle No:</strong> {requisition.vehicle_num || ''}
+              <strong>Vehicle No:</strong> {getVehicleNumber(requisition) || ''}
             </p>
             <p style={{ margin: '5px 0' }}>
               <strong>L/R No:</strong> {requisition.lr_no || ''}
             </p>
-            <p style={{ margin: '5px 0' }}>
-              <strong>Date:</strong> {date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}
-            </p>
+           
           </div>
           <div style={{ width: '35%' }}>
             <p style={{ margin: '5px 0' }}>
               <strong>Received:</strong> 
             </p>
-            <p style={{ margin: '5px 0' }}>
-              <strong>Date:</strong> {requisition.receive_date ? new Date(requisition.receive_date).toLocaleDateString() : ''}
+             <p style={{ margin: '5px 0' }}>
+              <strong>Date:</strong> {date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}
             </p>
             <div style={{ 
               textAlign: 'center',
               paddingTop: '5px'
             }}>
-              <p style={{ margin: '5px 0', fontWeight: 'bold' }}>Authorized By</p>
+              <p style={{ margin: '5px 0', fontWeight: 'bold' }}>Authorized By:</p>
             </div>
           </div>
         </div>
@@ -429,210 +430,223 @@ const AdminDashboard = () => {
 
       const printContent = `
         <html>
-          <head>
-            <style>
-              @page { 
-                size: A4; 
-                margin: 1mm;
-              }
-              @media print {
-                body { 
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                  margin: 0;
-                  padding: 0;
-                  font-family: Arial, sans-serif;
-                  font-size: 18px;
-                  color: #000;
-                  background: #fff;
-                }
-                img {
-                  max-width: 500px;
-                  height: auto;
-                }
-                table {
-                  border-collapse: collapse;
-                  width: 100%;
-                }
-                th, td {
-                  border: 1px solid #000;
-                  padding: 8px;
-                }
-                th {
-                  background-color: #f5f5f5;
-                  font-weight: bold;
-                  text-align: center;
-                  font-size:16px;
-                }
-              }
-              body {
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                color: #000;
-                background: #fff;
-                margin: 0;
-                padding: 0;
-              }
-              .challan-container {
-                width: 210mm;
-                margin: 0 auto;
-                min-height: 297mm;
-                padding: 20mm;
-                box-sizing: 'border-box';
-              }
-              .header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 30px;
-              }
-              .header .company-info {
-                text-align: center;
-              }
-              .header h1 {
-                margin: 0;
-                font-size: 20px;
-                font-weight: bold;
-              }
-              .header h2 {
-                margin: 5px 0 0 0;
-                font-size: 17px;
-              }
-              .header p {
-                margin: 5px 0 0 0;
-              }
-              .title {
-                text-align: center;
-                margin: 20px 0 30px 0;
-                font-size: 22px;
-                font-weight: bold;
-                text-decoration: underline;
-              }
-              .details {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 30px;
-              }
-              .details-left {
-                width: 60%;
-              }
-              .details-right {
-                text-align: right;
-              }
-              .details p {
-                margin: 5px 0;
-              }
-              .table-container {
-                margin-bottom: 30px;
-              }
-              .footer {
-                display: flex;
-                justify-content: space-between;
-                margin-top: 40px;
-              }
-              .footer-left {
-                width: 60%;
-              }
-              .footer-right {
-                width: 35%;
-              }
-              .footer-right .signature {
-                margin-top: 30px;
-                text-align: center;
-                padding-top: 5px;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="challan-container">
-              <div class="header">
-                <img src="${MSLLogo}" alt="MSL Logo" style="width: 100px; height: auto; object-fit: contain;" />
-                <div class="company-info">
-                  <h1>MAHARASHTRA SEAMLESS LIMITED</h1>
-                  <h2>D.P. JINDAL GROUP OF INDUSTRIES</h2>
-                  <p>Sreepuram, Narketpally, Nalgonda-508254, Telangana</p>
-                </div>
-                <img src="${UnitedLogo}" alt="United Logo" style="width: 170px; height: 100px; object-fit: contain;" />
-              </div>
+  <head>
+    <style>
+      @page { 
+        size: A4; 
+        margin: 1mm;
+      }
+      @media print {
+        body { 
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          margin: 0;
+          padding: 0;
+          font-family: Arial, sans-serif;
+          font-size: 18px;
+          color: #000;
+          background: #fff;
+        }
+        img {
+          max-width: 500px;
+          height: auto;
+        }
+        table {
+          border-collapse: collapse;
+          width: 100%;
+        }
+        th, td {
+          border: 1px solid #000;
+          padding: 8px;
+        }
+        th {
+          background-color: #f5f5f5;
+          font-weight: bold;
+          text-align: center;
+          font-size:16px;
+        }
+      }
+      body {
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        color: #000;
+        background: #fff;
+        margin: 0;
+        padding: 0;
+      }
+      .challan-container {
+        width: 210mm;
+        margin: 0 auto;
+        min-height: 297mm;
+        padding: 20mm;
+        box-sizing: 'border-box';
+        position: relative;
+      }
+      .form-number {
+        position: absolute;
+        right: 20mm;
+        top: 20mm;
+        font-size: 11px;
+        margin: 0;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+      }
+      .header .company-info {
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: bold;
+      }
+      .header h2 {
+        margin: 5px 0 0 0;
+        font-size: 17px;
+      }
+      .header p {
+        margin: 5px 0 0 0;
+      }
+      .title {
+        text-align: center;
+        margin: 20px 0 30px 0;
+        font-size: 22px;
+        font-weight: bold;
+        text-decoration: underline;
+      }
+      .details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+      }
+      .details-left {
+        width: 60%;
+      }
+      .details-right {
+        text-align: right;
+      }
+      .details p {
+        margin: 5px 0;
+      }
+      .table-container {
+        margin-bottom: 30px;
+      }
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 40px;
+      }
+      .footer-left {
+        width: 60%;
+      }
+      .footer-right {
+        width: 35%;
+      }
+      .footer-right .signature {
+        margin-top: 30px;
+        text-align: center;
+        padding-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="challan-container">
+      <p class="form-number">FORM/STR/006/00</p>
+      <div class="header">     
+        <img src="${MSLLogo}" alt="MSL Logo" style="width: 100px; height: auto; object-fit: contain;" />
+        <div class="company-info">
+          <h1>MAHARASHTRA SEAMLESS LIMITED</h1>
+          <h2>D.P. JINDAL GROUP OF INDUSTRIES</h2>
+          <p>Sreepuram, Narketpally, Nalgonda-508254, Telangana</p>
+        </div>
+        <img src="${UnitedLogo}" alt="United Logo" style="width: 170px; height: 100px; object-fit: contain;" />
+      </div>
 
-              <h1 class="title">
-                ${selectedRequisition.document_type === 'RGP' ? 'Returnable Gate Pass' : 'Non-Returnable Gate Pass'}
-              </h1>
+      <h1 class="title">
+        ${selectedRequisition.document_type === 'RGP' ? 'Returnable Gate Pass' : 'Non-Returnable Gate Pass'}
+      </h1>
 
-              <div class="details">
-                <div class="details-left">
-                  <p style="font-weight: bold; margin-bottom: 5px;font-size: 20px;">To:</p>
-                  <p style="margin: 5px 0; min-height: 20px;font-size: 18px;">${selectedRequisition.supplier_name || ''}</p>
-                  <p style="margin: 5px 0; min-height: 20px;font-size: 18px;">${selectedRequisition.supplier_address || ''}</p>
-                </div>
-                <div class="details-right">
-                  <p style="font-size: 18px;"><strong>Gatepass No:</strong> ${selectedRequisition.gate_pass_no || ''}</p>
-                  <p style="font-size: 18px;"><strong>Date:</strong> ${selectedRequisition.requisition_date ? new Date(selectedRequisition.requisition_date).toLocaleDateString() : ''}</p>
-                </div>
-              </div>
+      <div class="details">
+        <div class="details-left">
+          <p style="font-weight: bold; margin-bottom: 5px;font-size: 20px;">To:</p>
+          <p style="margin: 5px 0; min-height: 20px;font-size: 18px;">${selectedRequisition.supplier_name || ''}</p>
+          <p style="margin: 5px 0; min-height: 20px;font-size: 18px;">${selectedRequisition.supplier_address || ''}</p>
+        </div>
+        <div class="details-right">
+          <p style="font-size: 18px;"><strong>Gatepass No:</strong> ${selectedRequisition.gate_pass_no || ''}</p>
+          <p style="font-size: 18px;"><strong>Date:</strong> ${selectedRequisition.requisition_date ? new Date(selectedRequisition.requisition_date).toLocaleDateString() : ''}</p>
+        </div>
+      </div>
 
-              <div class="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>St. No</th>
-                      <th>Particulars</th>
-                      <th>Unit</th>
-                      <th>Qty</th>
-                      <th>Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${selectedRequisition.items?.map((item, index) => `
-                      <tr>
-                        <td style="text-align: center;">${index + 1}</td>
-                        <td>${item.material_description}</td>
-                        <td style="text-align: center;">${item.unit}</td>
-                        <td style="text-align: center;">${item.quantity_requested}</td>
-                        <td style="text-align: center;">${item.remarks || '-'}</td>
-                      </tr>
-                    `).join('')}
-                    ${[...Array(Math.max(0, 10 - (selectedRequisition.items?.length || 0)))].map((_, index) => `
-                      <tr>
-                        <td style="height: 40px;"> </td>
-                        <td> </td>
-                        <td> </td>
-                        <td> </td>
-                        <td> </td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>St. No</th>
+              <th>Particulars</th>
+              <th>Unit</th>
+              <th>Qty</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${selectedRequisition.items?.map((item, index) => `
+              <tr>
+                <td style="text-align: center;">${index + 1}</td>
+                <td>${item.material_description}</td>
+                <td style="text-align: center;">${item.unit}</td>
+                <td style="text-align: center;">${item.quantity_requested}</td>
+                <td style="text-align: center;">${item.remarks || '-'}</td>
+              </tr>
+            `).join('')}
+            ${[...Array(Math.max(0, 10 - (selectedRequisition.items?.length || 0)))].map((_, index) => `
+              <tr>
+                <td style="height: 40px;"> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
 
-              <div class="footer">
-                <div class="footer-left">
-                  <p style="font-weight: bold; margin-bottom: 5px;font-size:18px;">Transport Details:</p>
-                  <p style=" font-size:18px;"><strong >Through:</strong> ${selectedRequisition.transporter_name || ''}</p>
-                  <p style=" font-size:18px;"><strong>Vehicle No:</strong> ${selectedRequisition.vehicle_num || ''}</p>
-                  <p style=" font-size:18px;"><strong>L/R No:</strong> ${selectedRequisition.lr_no || ''}</p>
-                  <p style=" font-size:18px;"><strong>Date:</strong> ${date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}</p>
-                </div>
-                <div class="footer-right">
-                  <p style=" font-size:18px;"><strong>Received:</strong></p>
-                  <p style=" font-size:18px;"><strong>Date:</strong> ${selectedRequisition.receive_date ? new Date(selectedRequisition.receive_date).toLocaleDateString() : ''}</p>
-                  <p style="font-weight: bold;font-size:18px;">Authorized By</p>
-                  
-                </div>
-              </div>
-            </div>
-            <script>
-              window.onbeforeprint = () => console.log('Printing started');
-              window.onafterprint = () => {
-                console.log('Printing completed');
-                window.close();
-              };
-              window.onload = () => {
-                window.print();
-              };
-            </script>
-          </body>
-        </html>
+      <div class="footer">
+        <div class="footer-left">
+          <p style="font-weight: bold; margin-bottom: 5px;font-size:18px;">Transport Details:</p>
+          <p style=" font-size:18px;"><strong >Through:</strong> ${selectedRequisition.transporter_name || ''}</p>
+          <p style=" font-size:18px;"><strong>Vehicle No:</strong> ${selectedRequisition.vehicle_num || ''}</p>
+          <p style=" font-size:18px;"><strong>L/R No:</strong> ${selectedRequisition.lr_no || ''}</p>
+          <br>
+          <br>
+          <br>
+          <br>
+          <br>
+          <p style=" font-size:9px;"><strong>Effective Date:</strong>  01.08.2023 </p>
+        </div>
+        <div class="footer-right">
+          <p style=" font-size:18px;"><strong>Received:</strong></p>
+          <p style=" font-size:18px;"><strong>Date:</strong> ${date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()}</p>
+          <p style="font-weight: bold;font-size:18px;">Authorized By</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.onbeforeprint = () => console.log('Printing started');
+      window.onafterprint = () => {
+        console.log('Printing completed');
+        window.close();
+      };
+      window.onload = () => {
+        window.print();
+      };
+    </script>
+  </body>
+</html>
       `;
 
       printWindow.document.write(printContent);

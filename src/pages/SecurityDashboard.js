@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, TextField, Button, Typography, Alert, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, Snackbar, Chip, Checkbox,
-  FormControl, InputLabel, Select, MenuItem, Divider, Tabs, Tab, CircularProgress
+  Divider, CircularProgress, Drawer, List, ListItem, 
+  ListItemButton, ListItemIcon, ListItemText, AppBar, Toolbar, IconButton
 } from '@mui/material';
 import { 
   Search as SearchIcon, 
@@ -10,10 +11,25 @@ import {
   LocalShipping,
   Inventory,
   ExitToApp,
-  ArrowBack
+  ArrowBack,
+  Menu
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
+
+const colors = {
+  primary: '#0A6ED1',
+  secondary: '#6A6D70',
+  success: '#5CB85C',
+  warning: '#F0AD4E',
+  danger: '#D9534F',
+  light: '#F5F5F5',
+  dark: '#1A252F',
+  background: '#F7F7F7',
+  text: '#FFFFFF',
+};
+
+const drawerWidth = 240;
 
 const SecurityDashboard = () => {
   const [gatePasses, setGatePasses] = useState([]);
@@ -25,6 +41,7 @@ const SecurityDashboard = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [activeTab, setActiveTab] = useState('gatepasses');
   const [searchTerm, setSearchTerm] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -91,7 +108,6 @@ const SecurityDashboard = () => {
         params: { checkOut: true }
       });
       setSelectedRecord(response.data);
-      console.log(response.data);
       navigate(`?tab=${activeTab}&gatePass=${gatePassNo}`, { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch gate pass details');
@@ -130,7 +146,6 @@ const SecurityDashboard = () => {
       setLoading(true);
       const response = await axios.get(`http://localhost:5000/api/material-in/${movementId}`);
       setSelectedRecord(response.data);
-      console.log(response.data);
       navigate(`?tab=${activeTab}&movement=${movementId}`, { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch material in details');
@@ -153,56 +168,56 @@ const SecurityDashboard = () => {
   };
 
   const handleMaterialOut = async () => {
-  try {
-    setLoading(true);
-    
-    // Check if document type is NRGP
-    if (selectedRecord.document_type === 'NRGP') {
-      // For NRGP, directly mark as completed
-      await axios.post('http://localhost:5000/api/material-out-nrgp', {
-        gate_pass_no: selectedRecord.gate_pass_no,
-        items: selectedRecord.items.map(item => ({
-          requisition_item_id: item.id,
-          quantity: item.quantity_requested
-        }))
-      });
+    try {
+      setLoading(true);
       
-      setSnackbar({
-        open: true,
-        message: `NRGP ${selectedRecord.gate_pass_no} processed as completed automatically`,
-        severity: 'success'
-      });
-    } else {
-      // Normal RGP processing
-      await axios.post('http://localhost:5000/api/material-movements', {
-        gate_pass_no: selectedRecord.gate_pass_no,
-        movement_type: 'out',
-        items: selectedRecord.items.map(item => ({
-          requisition_item_id: item.id,
-          quantity: item.quantity_requested
-        }))
-      });
+      // Check if document type is NRGP
+      if (selectedRecord.document_type === 'NRGP') {
+        // For NRGP, directly mark as completed
+        await axios.post('http://localhost:5000/api/material-out-nrgp', {
+          gate_pass_no: selectedRecord.gate_pass_no,
+          items: selectedRecord.items.map(item => ({
+            requisition_item_id: item.id,
+            quantity: item.quantity_requested
+          }))
+        });
+        
+        setSnackbar({
+          open: true,
+          message: `NRGP ${selectedRecord.gate_pass_no} processed as completed automatically`,
+          severity: 'success'
+        });
+      } else {
+        // Normal RGP processing
+        await axios.post('http://localhost:5000/api/material-movements', {
+          gate_pass_no: selectedRecord.gate_pass_no,
+          movement_type: 'out',
+          items: selectedRecord.items.map(item => ({
+            requisition_item_id: item.id,
+            quantity: item.quantity_requested
+          }))
+        });
 
+        setSnackbar({
+          open: true,
+          message: `Material out recorded for Gate Pass ${selectedRecord.gate_pass_no}`,
+          severity: 'success'
+        });
+      }
+      
+      handleBackToList();
+      fetchGatePasses();
+      fetchMaterialOutForIn();
+    } catch (err) {
       setSnackbar({
         open: true,
-        message: `Material out recorded for Gate Pass ${selectedRecord.gate_pass_no}`,
-        severity: 'success'
+        message: err.response?.data?.error || 'Failed to record material movement',
+        severity: 'error'
       });
+    } finally {
+      setLoading(false);
     }
-    
-    handleBackToList();
-    fetchGatePasses();
-    fetchMaterialOutForIn();
-  } catch (err) {
-    setSnackbar({
-      open: true,
-      message: err.response?.data?.error || 'Failed to record material movement',
-      severity: 'error'
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Handle material in
   const handleMaterialIn = async () => {
@@ -369,7 +384,6 @@ const SecurityDashboard = () => {
   // Render detail view based on active tab
   const renderDetailView = () => {
     if (!selectedRecord) return null;
-    console.log(selectedRecord);
     return (
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -569,55 +583,179 @@ const SecurityDashboard = () => {
     );
   };
 
-  return (
-    <Box sx={{ p: 3 }}>
-      <Tabs 
-        value={activeTab} 
-        onChange={(e, newTab) => handleTabChange(newTab)}
-        sx={{ mb: 3 }}
-      >
-        <Tab 
-          value="gatepasses" 
-          label="Gate Passes (Material Out)" 
-          icon={<ExitToApp />} 
-          iconPosition="start" 
-        />
-        <Tab 
-          value="out" 
-          label="Material Out (Record In)" 
-          icon={<LocalShipping />} 
-          iconPosition="start" 
-        />
-        <Tab 
-          value="in" 
-          label="Material In (View)" 
-          icon={<Inventory />} 
-          iconPosition="start" 
-        />
-      </Tabs>
+  // Render the search section conditionally
+  const renderSearchSection = () => {
+    if (selectedRecord) return null; // Hide search when viewing details
+    
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        mb: 3,
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <Typography variant="h6">
+          {activeTab === 'gatepasses' ? 'Gate Passes (Material Out)' :
+           activeTab === 'out' ? 'Material Out (Record In)' : 'Material In Records'}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <TextField
+            size="small"
+            placeholder={`Search ${activeTab === 'gatepasses' ? 'Gate Pass' : 'Movement'}`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: <SearchIcon />
+            }}
+            sx={{ width: 250 }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              if (activeTab === 'gatepasses') fetchGatePasses();
+              else if (activeTab === 'out') fetchMaterialOutForIn();
+              else if (activeTab === 'in') fetchMaterialIn();
+            }}
+            startIcon={<SearchIcon />}
+          >
+            Search
+          </Button>
+        </Box>
+      </Box>
+    );
+  };
 
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <TextField
-          label={`Search ${activeTab === 'gatepasses' ? 'Gate Pass' : 'Movement'}`}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: <SearchIcon />
+  // Drawer content
+  const drawer = (
+    <Box sx={{ backgroundColor: colors.dark, color: colors.text, height: '100%', p: 2 }}>
+      
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 2 }} />
+      <List>
+        <ListItem disablePadding sx={ { marginTop: '50px'} }>
+          <ListItemButton
+            selected={activeTab === 'gatepasses'}
+            onClick={() => handleTabChange('gatepasses')}
+            sx={{ borderRadius: 1, '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
+          >
+            <ListItemIcon sx={{ color: colors.text }}>
+              <ExitToApp />
+            </ListItemIcon>
+            <ListItemText primary="Material Out" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton
+            selected={activeTab === 'out'}
+            onClick={() => handleTabChange('out')}
+            sx={{ borderRadius: 1, '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
+          >
+            <ListItemIcon sx={{ color: colors.text }}>
+              <LocalShipping />
+            </ListItemIcon>
+            <ListItemText primary="Record Material In" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton
+            selected={activeTab === 'in'}
+            onClick={() => handleTabChange('in')}
+            sx={{ borderRadius: 1, '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
+          >
+            <ListItemIcon sx={{ color: colors.text }}>
+              <Inventory />
+            </ListItemIcon>
+            <ListItemText primary="Material In Records" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </Box>
+  );
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  return (
+    <Box sx={{ display: 'flex', backgroundColor: colors.background }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { sm: `${drawerWidth}px` },
+          backgroundColor: 'white',
+          color: colors.dark,
+          boxShadow: 'none',
+          borderBottom: `1px solid ${colors.light}`,
+        }}
+      >
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { sm: 'none' } }}
+          >
+            <Menu />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            Security Dashboard
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Box
+        component="nav"
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        aria-label="mailbox folders"
+      >
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
-          sx={{ width: 300 }}
+        >
+          {drawer}
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          pt: { xs: 10, sm: 10 },
+          overflow: 'auto',
+        }}
+      >
+        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+
+        {renderSearchSection()}
+
+        {selectedRecord ? renderDetailView() : renderListView()}
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({...snackbar, open: false})}
+          message={snackbar.message}
         />
       </Box>
-
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
-      {selectedRecord ? renderDetailView() : renderListView()}
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
-        message={snackbar.message}
-      />
     </Box>
   );
 };
