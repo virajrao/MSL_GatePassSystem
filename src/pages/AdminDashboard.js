@@ -56,8 +56,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import MSLLogo from './MSL_Logo.png';
-import UnitedLogo from './United_logo.png';
+import MSLLogo from '../assets/MSL_logo.png';
+import UnitedLogo from '../assets/United_logo.png';
 
 const colors = {
   primary: '#0A6ED1',
