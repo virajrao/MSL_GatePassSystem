@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 
 // Middleware
 app.use(cors({
-  origin: 'http://200.0.5.115:3000',
+  origin: 'http://200.0.5.184:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -1531,7 +1531,6 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
-
+const IP = '200.0.5.184';
 const PORT = process.env.PORT || 5000;
-const IP =  '200.0.5.115';
-app.listen(PORT, IP, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT,IP, () => console.log(`Server running on port ${PORT}`));
