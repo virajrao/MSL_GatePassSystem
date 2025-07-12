@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: 'http://200.0.5.115:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -1533,4 +1533,4 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, '200.0.5.115', () => console.log(`Server running on port ${PORT}`));
