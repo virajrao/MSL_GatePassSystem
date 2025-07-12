@@ -586,6 +586,7 @@ Server running on port 5000
 Server running on port 5000
 Server running on port 5000
 Server running on port 5000
+<<<<<<< HEAD
 Initiating SAP Service PR fetch with smart pagination and DB sync...
 Fetching batch: skip=0, top=1000
 Fetched 14 records (Total: 14)
@@ -671,3 +672,5 @@ Starting database synchronization...
 Refreshing database (SAP: 14 items vs DB: 14)
 Inserted 14 records (Total: 14)
 Database now contains 14 records
+=======
+>>>>>>> dd144f388d66f3d7c0e8e2f7a066cb5a1cf7dc1a
