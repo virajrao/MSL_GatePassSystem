@@ -2009,3 +2009,429 @@ Fetching supplier batch: skip=0, top=1000
 Fetched 486 supplier records (Total: 486)
 Reached end of supplier records
 Returning all 486 suppliers
+Initiating SAP Service PR fetch with smart pagination and DB sync...
+Fetching batch: skip=0, top=1000
+Fetched 14 records (Total: 14)
+Reached end of product records
+Total records fetched from SAP: 14
+Sample records: [
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100000',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'TAMS-01',
+    RequestedQuantity: '100.000',
+    DeliveryDate: '/Date(1746489600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: '',
+    Code_Text: '',
+    ItemNetAmount: '20000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1745884800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Kranti Babhulkar 04/29/2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100010',
+    PurchaseRequisitionItem: '00010',
+    Material: '',
+    RequisitionerName: 'US30050',
+    RequestedQuantity: '10.000',
+    DeliveryDate: '/Date(1748217600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'MM_Department',
+    Code_Text: 'MM Department',
+    ItemNetAmount: '1000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'AU',
+    PurchaseReqnCreationDate: '/Date(1747612800000)/',
+    PurchaseRequisitionItemText: 'PAINTING',
+    PurReqnDescription: 'Rupak Kundu 19.05.2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100020',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'C00004',
+    RequestedQuantity: '1.000',
+    DeliveryDate: '/Date(1750377600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'IT',
+    Code_Text: 'IT',
+    ItemNetAmount: '100.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1749772800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Viraj Rao 13.06.2025',
+    to_Text: { __deferred: [Object] }
+  }
+]
+Grouped into 10 PRs
+Total items to insert: 14
+Starting database synchronization...
+Refreshing database (SAP: 14 items vs DB: 14)
+Inserted 14 records (Total: 14)
+Database now contains 14 records
+Initiating SAP Service PR fetch with smart pagination and DB sync...
+Fetching batch: skip=0, top=1000
+Fetched 14 records (Total: 14)
+Reached end of product records
+Total records fetched from SAP: 14
+Sample records: [
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100000',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'TAMS-01',
+    RequestedQuantity: '100.000',
+    DeliveryDate: '/Date(1746489600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: '',
+    Code_Text: '',
+    ItemNetAmount: '20000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1745884800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Kranti Babhulkar 04/29/2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100010',
+    PurchaseRequisitionItem: '00010',
+    Material: '',
+    RequisitionerName: 'US30050',
+    RequestedQuantity: '10.000',
+    DeliveryDate: '/Date(1748217600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'MM_Department',
+    Code_Text: 'MM Department',
+    ItemNetAmount: '1000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'AU',
+    PurchaseReqnCreationDate: '/Date(1747612800000)/',
+    PurchaseRequisitionItemText: 'PAINTING',
+    PurReqnDescription: 'Rupak Kundu 19.05.2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100020',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'C00004',
+    RequestedQuantity: '1.000',
+    DeliveryDate: '/Date(1750377600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'IT',
+    Code_Text: 'IT',
+    ItemNetAmount: '100.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1749772800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Viraj Rao 13.06.2025',
+    to_Text: { __deferred: [Object] }
+  }
+]
+Grouped into 10 PRs
+Total items to insert: 14
+Starting database synchronization...
+Refreshing database (SAP: 14 items vs DB: 14)
+Inserted 14 records (Total: 14)
+Database now contains 14 records
+Initiating SAP Service PR fetch with smart pagination and DB sync...
+Fetching batch: skip=0, top=1000
+Fetched 14 records (Total: 14)
+Reached end of product records
+Total records fetched from SAP: 14
+Sample records: [
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100000',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'TAMS-01',
+    RequestedQuantity: '100.000',
+    DeliveryDate: '/Date(1746489600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: '',
+    Code_Text: '',
+    ItemNetAmount: '20000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1745884800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Kranti Babhulkar 04/29/2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100010',
+    PurchaseRequisitionItem: '00010',
+    Material: '',
+    RequisitionerName: 'US30050',
+    RequestedQuantity: '10.000',
+    DeliveryDate: '/Date(1748217600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'MM_Department',
+    Code_Text: 'MM Department',
+    ItemNetAmount: '1000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'AU',
+    PurchaseReqnCreationDate: '/Date(1747612800000)/',
+    PurchaseRequisitionItemText: 'PAINTING',
+    PurReqnDescription: 'Rupak Kundu 19.05.2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100020',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'C00004',
+    RequestedQuantity: '1.000',
+    DeliveryDate: '/Date(1750377600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'IT',
+    Code_Text: 'IT',
+    ItemNetAmount: '100.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1749772800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Viraj Rao 13.06.2025',
+    to_Text: { __deferred: [Object] }
+  }
+]
+Grouped into 10 PRs
+Total items to insert: 14
+Starting database synchronization...
+Refreshing database (SAP: 14 items vs DB: 14)
+Inserted 14 records (Total: 14)
+Database now contains 14 records
+Server running on port 5000
+Initiating SAP Service PR fetch with smart pagination and DB sync...
+Fetching batch: skip=0, top=1000
+Fetched 14 records (Total: 14)
+Reached end of product records
+Total records fetched from SAP: 14
+Sample records: [
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100000',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'TAMS-01',
+    RequestedQuantity: '100.000',
+    DeliveryDate: '/Date(1746489600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: '',
+    Code_Text: '',
+    ItemNetAmount: '20000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1745884800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Kranti Babhulkar 04/29/2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100010',
+    PurchaseRequisitionItem: '00010',
+    Material: '',
+    RequisitionerName: 'US30050',
+    RequestedQuantity: '10.000',
+    DeliveryDate: '/Date(1748217600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'MM_Department',
+    Code_Text: 'MM Department',
+    ItemNetAmount: '1000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'AU',
+    PurchaseReqnCreationDate: '/Date(1747612800000)/',
+    PurchaseRequisitionItemText: 'PAINTING',
+    PurReqnDescription: 'Rupak Kundu 19.05.2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100020',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'C00004',
+    RequestedQuantity: '1.000',
+    DeliveryDate: '/Date(1750377600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'IT',
+    Code_Text: 'IT',
+    ItemNetAmount: '100.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1749772800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Viraj Rao 13.06.2025',
+    to_Text: { __deferred: [Object] }
+  }
+]
+Grouped into 10 PRs
+Total items to insert: 14
+Starting database synchronization...
+Refreshing database (SAP: 14 items vs DB: 14)
+Inserted 14 records (Total: 14)
+Database now contains 14 records
+Initiating SAP Service PR fetch with smart pagination and DB sync...
+Fetching batch: skip=0, top=1000
+Fetched 14 records (Total: 14)
+Reached end of product records
+Total records fetched from SAP: 14
+Sample records: [
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100000',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100000',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'TAMS-01',
+    RequestedQuantity: '100.000',
+    DeliveryDate: '/Date(1746489600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: '',
+    Code_Text: '',
+    ItemNetAmount: '20000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1745884800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Kranti Babhulkar 04/29/2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100010',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100010',
+    PurchaseRequisitionItem: '00010',
+    Material: '',
+    RequisitionerName: 'US30050',
+    RequestedQuantity: '10.000',
+    DeliveryDate: '/Date(1748217600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'MM_Department',
+    Code_Text: 'MM Department',
+    ItemNetAmount: '1000.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'AU',
+    PurchaseReqnCreationDate: '/Date(1747612800000)/',
+    PurchaseRequisitionItemText: 'PAINTING',
+    PurReqnDescription: 'Rupak Kundu 19.05.2025',
+    to_Text: { __deferred: [Object] }
+  },
+  {
+    __metadata: {
+      id: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      uri: "https://my420917-api.s4hana.cloud.sap/sap/opu/odata/sap/YY1_PUR_REQN1_CDS/YY1_pur_reqn1(PurchaseRequisition='1100020',PurchaseRequisitionItem='00010')",
+      type: 'YY1_PUR_REQN1_CDS.YY1_pur_reqn1Type'
+    },
+    PurchaseRequisition: '1100020',
+    PurchaseRequisitionItem: '00010',
+    Material: 'AMC SERVICES',
+    RequisitionerName: 'C00004',
+    RequestedQuantity: '1.000',
+    DeliveryDate: '/Date(1750377600000)/',
+    PurchaseRequisitionType: 'ZSER',
+    Code: 'IT',
+    Code_Text: 'IT',
+    ItemNetAmount: '100.00',
+    PurReqnItemCurrency: 'INR',
+    PurReqnReleaseStatus: '05',
+    BaseUnit: 'HR',
+    PurchaseReqnCreationDate: '/Date(1749772800000)/',
+    PurchaseRequisitionItemText: 'AMC Services',
+    PurReqnDescription: 'Viraj Rao 13.06.2025',
+    to_Text: { __deferred: [Object] }
+  }
+]
+Grouped into 10 PRs
+Total items to insert: 14
+Starting database synchronization...
+Refreshing database (SAP: 14 items vs DB: 14)
+Inserted 14 records (Total: 14)
+Database now contains 14 records

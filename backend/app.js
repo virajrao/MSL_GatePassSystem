@@ -1533,4 +1533,5 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '200.0.5.115', () => console.log(`Server running on port ${PORT}`));
+const IP =  '200.0.5.115';
+app.listen(PORT, IP, () => console.log(`Server running on port ${PORT}`));
