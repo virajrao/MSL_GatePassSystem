@@ -892,3 +892,4 @@ Starting database synchronization...
 Refreshing database (SAP: 14 items vs DB: 0)
 Inserted 14 records (Total: 14)
 Database now contains 14 records
+Server running on port 5000
