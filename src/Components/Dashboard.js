@@ -64,13 +64,7 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [user?.id]);
 
-  const quickActions = [
-    {
-      title: 'Create Requisition',
-      icon: <CreateIcon fontSize="large" color="primary" />,
-      path: '/create-requisition'
-    }
-  ];
+
 
   const getStatusIcon = (status) => {
     switch(status) {
@@ -134,41 +128,6 @@ const Dashboard = () => {
       }}>
         Quick Actions
       </Typography>
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {quickActions.map((action, index) => (
-          <Grid item xs={12} sm={6} key={index}>
-            <Card 
-              sx={{ 
-                height: '100%',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: `0 4px 8px rgba(0, 0, 0, 0.1)`
-                }
-              }}
-                onClick={() => navigate('/create-requisition')}
-            >
-              <CardContent sx={{ 
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2
-              }}>
-                <Avatar sx={{ 
-                  bgcolor: 'primary.light', 
-                  width: 48, 
-                  height: 48
-                }}>
-                  {action.icon}
-                </Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                  {action.title}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
 
       <Divider sx={{ my: 3 }} />
 
