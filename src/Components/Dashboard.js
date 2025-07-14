@@ -47,8 +47,8 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const [statsRes, requisitionsRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/dashboard/stats/${user?.id}`),
-          axios.get(`http://localhost:5000/api/requisitions/recent/${user?.id}`)
+          axios.get(`http://200.0.5.184:5000/api/dashboard/stats/${user?.id}`),
+          axios.get(`http://200.0.5.184:5000/api/requisitions/recent/${user?.id}`)
         ]);
         
         setStats(statsRes.data);

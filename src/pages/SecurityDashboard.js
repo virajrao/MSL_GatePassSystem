@@ -55,7 +55,7 @@ const SecurityDashboard = () => {
   const fetchGatePasses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/gatepasses', {
+      const response = await axios.get('http://200.0.5.184:5000/api/gatepasses', {
         params: { 
           status: 'higherauthapprove',
           documentType: 'RGP',
@@ -74,7 +74,7 @@ const SecurityDashboard = () => {
   const fetchMaterialOutForIn = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/material-out-for-in', {
+      const response = await axios.get('http://200.0.5.184:5000/api/material-out-for-in', {
         params: { search: searchTerm }
       });
       setMaterialOutForIn(response.data);
@@ -89,7 +89,7 @@ const SecurityDashboard = () => {
   const fetchMaterialIn = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/material-in', {
+      const response = await axios.get('http://200.0.5.184:5000/api/material-in', {
         params: { search: searchTerm }
       });
       setMaterialIn(response.data);
@@ -104,7 +104,7 @@ const SecurityDashboard = () => {
   const fetchGatePassDetails = async (gatePassNo) => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/gatepasses/${gatePassNo}`, {
+      const response = await axios.get(`http://200.0.5.184:5000/api/gatepasses/${gatePassNo}`, {
         params: { checkOut: true }
       });
       setSelectedRecord(response.data);
@@ -120,7 +120,7 @@ const SecurityDashboard = () => {
   const fetchMaterialOutDetails = async (movementId) => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/material-out-for-in/${movementId}`);
+      const response = await axios.get(`http://200.0.5.184:5000/api/material-out-for-in/${movementId}`);
       
       // Initialize all items as pending
       const movement = {
@@ -144,7 +144,7 @@ const SecurityDashboard = () => {
   const fetchMaterialInDetails = async (movementId) => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/material-in/${movementId}`);
+      const response = await axios.get(`http://200.0.5.184:5000/api/material-in/${movementId}`);
       setSelectedRecord(response.data);
       navigate(`?tab=${activeTab}&movement=${movementId}`, { replace: true });
     } catch (err) {
@@ -174,7 +174,7 @@ const SecurityDashboard = () => {
       // Check if document type is NRGP
       if (selectedRecord.document_type === 'NRGP') {
         // For NRGP, directly mark as completed
-        await axios.post('http://localhost:5000/api/material-out-nrgp', {
+        await axios.post('http://200.0.5.184:5000/api/material-out-nrgp', {
           gate_pass_no: selectedRecord.gate_pass_no,
           items: selectedRecord.items.map(item => ({
             requisition_item_id: item.id,
@@ -189,7 +189,7 @@ const SecurityDashboard = () => {
         });
       } else {
         // Normal RGP processing
-        await axios.post('http://localhost:5000/api/material-movements', {
+        await axios.post('http://200.0.5.184:5000/api/material-movements', {
           gate_pass_no: selectedRecord.gate_pass_no,
           movement_type: 'out',
           items: selectedRecord.items.map(item => ({
@@ -224,7 +224,7 @@ const SecurityDashboard = () => {
     try {
       setLoading(true);
       
-      const response = await axios.post('http://localhost:5000/api/material-in', {
+      const response = await axios.post('http://200.0.5.184:5000/api/material-in', {
         gate_pass_no: selectedRecord.gate_pass_no,
         movement_out_id: selectedRecord.id,
         items: selectedRecord.items.map(item => ({

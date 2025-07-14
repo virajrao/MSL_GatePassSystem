@@ -340,7 +340,7 @@ const AdminDashboard = () => {
       return;
     }
 
-    const response = await axios.put('http://localhost:5000/api/AdminReject', {
+    const response = await axios.put('http://200.0.5.184:5000/api/AdminReject', {
       requisitionId: selectedRequisition.id
     });
 
@@ -377,7 +377,7 @@ const AdminDashboard = () => {
         page: reset ? 1 : filter.page,
         limit: filter.limit,
       };
-      const response = await axios.get('http://localhost:5000/api/requisitionsdet', { params });
+      const response = await axios.get('http://200.0.5.184:5000/api/requisitionsdet', { params });
       if (reset) {
         setRequisitions(response.data);
       } else {
@@ -408,7 +408,7 @@ const AdminDashboard = () => {
     try {
       selectedRequisition.challan_date =  
       // Update requisition status to 'higherauthapprove'
-      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/state`, {
+      await axios.put(`http://200.0.5.184:5000/api/requisitions/${selectedRequisition.id}/state`, {
         status: 'higherauthapprove',
         details: selectedRequisition
       });
@@ -705,7 +705,7 @@ const AdminDashboard = () => {
   const handleHigherApproval = async (status) => {
 
     try {
-      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, {
+      await axios.put(`http://200.0.5.184:5000/api/requisitions/${selectedRequisition.id}/status`, {
         status,
         gatePassNo: selectedRequisition.gate_pass_no || '',
         documentType: selectedRequisition.document_type || 'RGP',

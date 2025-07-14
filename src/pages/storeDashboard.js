@@ -157,7 +157,7 @@ const StoreDashboard = () => {
         page: reset ? 1 : filter.page,
         limit: filter.limit,
       };
-      const response = await axios.get('http://localhost:5000/api/requisitionsdet', { params });
+      const response = await axios.get('http://200.0.5.184:5000/api/requisitionsdet', { params });
       if (reset) {
         setRequisitions(response.data);
       } else {
@@ -188,7 +188,7 @@ const StoreDashboard = () => {
   const fetchSuppliers = async (searchTerm = '') => {
     try {
       setSupplierLoading(true);
-      const response = await axios.get('http://localhost:5000/api/sap/suppliers', {
+      const response = await axios.get('http://200.0.5.184:5000/api/sap/suppliers', {
         params: { search: searchTerm },
       });
       setSupplierOptions(response.data);
@@ -228,7 +228,7 @@ const StoreDashboard = () => {
     try {
       setLoading(true);
       // Fetch full requisition details including gate pass info
-      const response = await axios.get(`http://localhost:5000/api/requisitionsdet`, {
+      const response = await axios.get(`http://200.0.5.184:5000/api/requisitionsdet`, {
         params: { 
           status: activeTab,
           search: requisition.pr_num,
@@ -321,7 +321,7 @@ const StoreDashboard = () => {
         status: 'storeapprove',
         ...passData,
       };
-      await axios.put(`http://localhost:5000/api/requisitions/${selectedRequisition.id}/status`, payload);
+      await axios.put(`http://200.0.5.184:5000/api/requisitions/${selectedRequisition.id}/status`, payload);
       setSnackbar({
         open: true,
         message: `Gate pass created successfully for Approval ${selectedRequisition.pr_num}!`,

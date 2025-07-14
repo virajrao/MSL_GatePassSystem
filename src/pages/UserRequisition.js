@@ -69,7 +69,7 @@ const UserRequisition = () => {
   const fetchPrRecords = async () => {
     setIsFetchingPr(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/sap/purchreq');
+      const response = await axios.get('http://200.0.5.184:5000/api/sap/purchreq');
       const records = response.data?.requisitions || [];
       
       const uniquePrRecords = records.reduce((acc, record) => {
@@ -100,7 +100,7 @@ const UserRequisition = () => {
 
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/validate-requisition/${trimmedNumber}`
+        `http://200.0.5.184:5000/api/validate-requisition/${trimmedNumber}`
       );
       
       if (response.data?.exists) {
@@ -154,7 +154,7 @@ const UserRequisition = () => {
       };
 
       const response = await axios.post(
-        'http://localhost:5000/api/submit-pr',
+        'http://200.0.5.184:5000/api/submit-pr',
         requestBody
       );
 
@@ -191,7 +191,7 @@ const UserRequisition = () => {
     
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/validate-requisition/${prNum}`
+        `http://200.0.5.184:5000/api/validate-requisition/${prNum}`
       );
       
       if (response.data?.exists) {

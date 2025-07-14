@@ -26,7 +26,7 @@ const RequisitionDashboard = () => {
   useEffect(() => {
     const fetchRequisitions = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/requisitions/${userId}`);
+        const response = await axios.get(`http://200.0.5.184:5000/api/requisitions/${userId}`);
         setRequisitions(response.data);
       } catch (error) {
         console.error('Error fetching requisitions:', error);
