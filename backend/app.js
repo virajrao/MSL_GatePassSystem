@@ -5,8 +5,6 @@ const app = express();
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 
-
-axios.defaults.baseURL = API_BASE_URL;
 // Middleware
 app.use(cors({
   origin: ['http://200.0.5.184:3000','http://200.0.5.284','https://localhost:3000'],
