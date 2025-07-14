@@ -120,16 +120,7 @@ const Dashboard = () => {
         ))}
       </Grid>
 
-      {/* Quick Actions */}
-      <Typography variant="h6" sx={{ 
-        mb: 3,
-        color: sapColors.textDark,
-        fontWeight: 500
-      }}>
-        Quick Actions
-      </Typography>
-
-      <Divider sx={{ my: 3 }} />
+  
 
       {/* Recent Requisitions */}
       <Typography variant="h6" sx={{ 
