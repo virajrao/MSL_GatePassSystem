@@ -1,4 +1,5 @@
 import React, { useState,useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Box, 
   Typography, 
@@ -36,7 +37,7 @@ const statusColors = {
   completed: 'info',
   submitted: 'primary'
 };
-
+ const navigate = useNavigate();
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -146,7 +147,7 @@ const Dashboard = () => {
                   boxShadow: `0 4px 8px rgba(0, 0, 0, 0.1)`
                 }
               }}
-              onClick={() => window.location.href = action.path}
+                onClick={() => navigate('/create-requisition')}
             >
               <CardContent sx={{ 
                 display: 'flex',
